@@ -1,0 +1,1 @@
+recursive-include pickle5 *.c *.h

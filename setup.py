@@ -7,7 +7,9 @@ with open("README.rst", "r") as fh:
 
 ext_modules = [
     Extension('pickle5._pickle',
-              ['pickle5/_pickle.c', 'pickle5/picklebufobject.c']),
+              ['pickle5/_pickle.c', 'pickle5/picklebufobject.c'],
+              depends=['pickle5/picklebufobject.h',
+                       'pickle5/compat.h']),
     ]
 
 setup(
