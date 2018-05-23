@@ -14,7 +14,7 @@ ext_modules = [
 
 setup(
     name="pickle5",
-    version="0.0.1",
+    version="0.0.2",
     author="Antoine Pitrou",
     author_email="antoine@python.org",
     description="Experimental backport of the pickle 5 protocol (PEP 574)",
@@ -29,6 +29,8 @@ setup(
         "License :: OSI Approved :: Python Software Foundation License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: Implementation :: CPython",
     ),
 )
