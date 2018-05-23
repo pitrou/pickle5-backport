@@ -1,9 +1,16 @@
-import setuptools
+from setuptools import setup, Extension, find_packages
+
 
 with open("README.rst", "r") as fh:
     long_description = fh.read()
 
-setuptools.setup(
+
+ext_modules = [
+    Extension('pickle5._pickle',
+              ['pickle5/_pickle.c', 'pickle5/picklebufobject.c']),
+    ]
+
+setup(
     name="pickle5",
     version="0.0.1",
     author="Antoine Pitrou",
@@ -12,7 +19,8 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/x-rst",
     url="https://github.com/pitrou/pickle5-backport",
-    packages=setuptools.find_packages(),
+    packages=find_packages(),
+    ext_modules=ext_modules,
     classifiers=(
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

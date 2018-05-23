@@ -1,0 +1,11 @@
+
+* Need to use Python 3.6 version of Argument Clinic
+
+From CPython checkout:
+
+    git checkout 3.6 -- Tools/clinic/
+
+then:
+
+    ./python Tools/clinic/clinic.py Modules/_pickle.c
+
