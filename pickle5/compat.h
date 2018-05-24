@@ -24,7 +24,10 @@ _PyObject_LookupAttr(PyObject *v, PyObject *name, PyObject **result)
         if (*result != NULL) {
             return 1;
         }
-        if (PyErr_Occurred()) {
+        if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            PyErr_Clear();
+        }
+        else if (PyErr_Occurred()) {
             return -1;
         }
         return 0;
