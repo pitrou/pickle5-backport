@@ -2540,6 +2540,19 @@ class AbstractPickleTests(unittest.TestCase):
                 new = self.loads(data, buffers=iter(buffers))
                 self.assertIs(new, obj)
 
+    def test_oob_buffers_writable_to_readonly(self):
+        # Test reconstructing readonly object from writable buffer
+        obj = ZeroCopyBytes(b"foo")
+        for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
+            buffers = []
+            buffer_callback = buffers.extend
+            data = self.dumps(obj, proto, buffer_callback=buffer_callback)
+
+            buffers = map(bytearray, buffers)
+            new = self.loads(data, buffers=buffers)
+            self.assertIs(type(new), type(obj))
+            self.assertEqual(new, obj)
+
     def test_picklebuffer_error(self):
         # PickleBuffer forbidden with protocol < 5
         pb = pickle.PickleBuffer(b"foo")
