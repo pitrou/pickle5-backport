@@ -3,7 +3,6 @@ import copyreg
 import dbm
 import io
 import functools
-import pickletools
 import struct
 import sys
 import unittest
@@ -16,8 +15,8 @@ from test.support import (
     _2G, _4G, bigmemtest,
     )
 
-from pickle5 import pickle
-from pickle5 import bytes_types
+import pickle5 as pickle
+from pickle5 import pickletools, bytes_types
 
 requires_32b = unittest.skipUnless(sys.maxsize < 2**32,
                                    "test is only meaningful on 32-bit builds")
@@ -1302,12 +1301,11 @@ class AbstractPickleTests(unittest.TestCase):
     # of 1.
     def dont_test_disassembly(self):
         from io import StringIO
-        from pickletools import dis
 
         for proto, expected in (0, DATA0_DIS), (1, DATA1_DIS):
             s = self.dumps(self._testdata, proto)
             filelike = StringIO()
-            dis(s, out=filelike)
+            pickletools.dis(s, out=filelike)
             got = filelike.getvalue()
             self.assertEqual(expected, got)
 

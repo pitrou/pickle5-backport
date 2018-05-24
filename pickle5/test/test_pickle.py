@@ -205,7 +205,7 @@ class PyChainDispatchTableTests(AbstractDispatchTableTests):
 
 if has_c_implementation:
     class CPickleTests(AbstractPickleModuleTests):
-        from _pickle import dump, dumps, load, loads, Pickler, Unpickler
+        from pickle5._pickle import dump, dumps, load, loads, Pickler, Unpickler
 
     class CUnpicklerTests(PyUnpicklerTests):
         unpickler = _pickle.Unpickler
@@ -498,17 +498,17 @@ class CompatPickleTests(unittest.TestCase):
 
 def test_main():
     tests = [PyPickleTests, PyUnpicklerTests, PyPicklerTests,
-             #PyPersPicklerTests, PyIdPersPicklerTests,
-             #PyDispatchTableTests, PyChainDispatchTableTests,
+             PyPersPicklerTests, PyIdPersPicklerTests,
+             PyDispatchTableTests, PyChainDispatchTableTests,
              CompatPickleTests]
     if has_c_implementation:
         tests.extend([CPickleTests, CUnpicklerTests, CPicklerTests,
-                      #CPersPicklerTests, CIdPersPicklerTests,
+                      CPersPicklerTests, CIdPersPicklerTests,
                       CDumpPickle_LoadPickle, DumpPickle_CLoadPickle,
                       PyPicklerUnpicklerObjectTests,
                       CPicklerUnpicklerObjectTests,
-                      #CDispatchTableTests, CChainDispatchTableTests,
-                      #InMemoryPickleTests, SizeofTests
+                      CDispatchTableTests, CChainDispatchTableTests,
+                      InMemoryPickleTests, SizeofTests
                       ])
     support.run_unittest(*tests)
     support.run_doctest(pickle)
