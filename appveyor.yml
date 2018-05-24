@@ -11,10 +11,12 @@ build_script:
   - "%PYTHON% setup.py install"
 
 test_script:
+  - cd build
   - "%PYTHON% -m pickle5.test.test_pickle"
+  - cd ..
 
 after_test:
-  - "%PYTHON% -m setup.py bdist_wheel"
+  - "%PYTHON% setup.py bdist_wheel"
 
 artifacts:
   # bdist_wheel puts your built wheel in the dist directory
