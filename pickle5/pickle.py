@@ -36,7 +36,7 @@ import io
 import codecs
 import _compat_pickle
 
-from ._pickle import PickleBuffer
+from ._pickle import PickleBuffer, _make_memoryview_readonly
 
 __all__ = ["PickleError", "PicklingError", "UnpicklingError", "Pickler",
            "Unpickler", "dump", "dumps", "load", "loads", "PickleBuffer"]
@@ -1363,7 +1363,9 @@ class _Unpickler:
         buf = self.stack[-1]
         with memoryview(buf) as m:
             if not m.readonly:
-                self.stack[-1] = m.toreadonly()
+                mm = memoryview(buf)
+                _make_memoryview_readonly(mm)
+                self.stack[-1] = mm
     dispatch[READONLY_BUFFER[0]] = load_readonly_buffer
 
     def load_short_binstring(self):

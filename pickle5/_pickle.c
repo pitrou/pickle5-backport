@@ -7778,11 +7778,25 @@ _pickle_loads_impl(PyObject *module, PyObject *data, int fix_imports,
     return NULL;
 }
 
+static PyObject*
+make_memoryview_readonly(PyObject *self, PyObject *arg)
+{
+    if (!PyMemoryView_Check(arg)) {
+        PyErr_Format(PyExc_TypeError,
+                     "_make_memoryview_readonly() argument must be memoryview");
+        return NULL;
+    }
+    PyMemoryViewObject *mv = (PyMemoryViewObject *) arg;
+    mv->view.readonly = 1;
+    Py_RETURN_NONE;
+}
+
 static struct PyMethodDef pickle_methods[] = {
     _PICKLE_DUMP_METHODDEF
     _PICKLE_DUMPS_METHODDEF
     _PICKLE_LOAD_METHODDEF
     _PICKLE_LOADS_METHODDEF
+    {"_make_memoryview_readonly", make_memoryview_readonly, METH_O},
     {NULL, NULL} /* sentinel */
 };
 
