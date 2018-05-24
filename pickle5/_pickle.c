@@ -710,7 +710,11 @@ static int save_reduce(PicklerObject *, PyObject *, PyObject *);
 static PyTypeObject Pickler_Type;
 static PyTypeObject Unpickler_Type;
 
+#if PY_VERSION_HEX < 0x03070000
+#include "clinic/_pickle-3.6.c.h"
+#else
 #include "clinic/_pickle.c.h"
+#endif
 
 /*************************************************************************
  A custom hashtable mapping void* to Python ints. This is used by the pickler
@@ -5402,8 +5406,10 @@ load_counted_binbytes(UnpicklerObject *self, int nbytes)
     bytes = PyBytes_FromStringAndSize(NULL, size);
     if (bytes == NULL)
         return -1;
-    if (_Unpickler_ReadInto(self, PyBytes_AS_STRING(bytes), size) < 0)
+    if (_Unpickler_ReadInto(self, PyBytes_AS_STRING(bytes), size) < 0) {
+        Py_DECREF(bytes);
         return -1;
+    }
 
     PDATA_PUSH(self->stack, bytes, -1);
     return 0;
@@ -5430,8 +5436,10 @@ load_counted_bytearray(UnpicklerObject *self)
     bytearray = PyByteArray_FromStringAndSize(NULL, size);
     if (bytearray == NULL)
         return -1;
-    if (_Unpickler_ReadInto(self, PyByteArray_AS_STRING(bytearray), size) < 0)
+    if (_Unpickler_ReadInto(self, PyByteArray_AS_STRING(bytearray), size) < 0) {
+        Py_DECREF(bytearray);
         return -1;
+    }
 
     PDATA_PUSH(self->stack, bytearray, -1);
     return 0;

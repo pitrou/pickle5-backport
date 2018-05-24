@@ -2,8 +2,13 @@ language: python
 
 dist: trusty
 
+notifications:
+  email: false
+
 env:
-  - PY_VENV=$TRAVIS_BUILD_DIR/venv
+  global:
+    - PY_VENV=$TRAVIS_BUILD_DIR/venv
+    - PYTHON=$PY_VENV/bin/python
 
 python:
   - "3.6"
@@ -11,11 +16,12 @@ python:
 
 install:
   - python -m venv $PY_VENV
-  - $PY_VENV/bin/python -m pip install -r requirements.txt
+  - $PYTHON -m pip install -U pip wheel setuptools
+  - $PYTHON -m pip install -r requirements.txt
 
 before_script:
-  - $PY_VENV/bin/python setup.py install
+  - $PYTHON setup.py install
 
 script:
   - cd /tmp
-  - $PY_VENV/bin/python -m pickle5.test.test_pickle
+  - $PYTHON -m pickle5.test.test_pickle

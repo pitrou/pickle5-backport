@@ -205,7 +205,7 @@ PyDoc_STRVAR(_pickle_Unpickler_find_class__doc__,
 "needed.  Both arguments passed are str objects.");
 
 #define _PICKLE_UNPICKLER_FIND_CLASS_METHODDEF    \
-    {"find_class", (PyCFunction)_pickle_Unpickler_find_class, METH_FASTCALL, _pickle_Unpickler_find_class__doc__},
+    {"find_class", (PyCFunction)_pickle_Unpickler_find_class, METH_VARARGS, _pickle_Unpickler_find_class__doc__},
 
 static PyObject *
 _pickle_Unpickler_find_class_impl(UnpicklerObject *self,
@@ -213,13 +213,13 @@ _pickle_Unpickler_find_class_impl(UnpicklerObject *self,
                                   PyObject *global_name);
 
 static PyObject *
-_pickle_Unpickler_find_class(UnpicklerObject *self, PyObject *const *args, Py_ssize_t nargs)
+_pickle_Unpickler_find_class(UnpicklerObject *self, PyObject *args)
 {
     PyObject *return_value = NULL;
     PyObject *module_name;
     PyObject *global_name;
 
-    if (!_PyArg_UnpackStack(args, nargs, "find_class",
+    if (!PyArg_UnpackTuple(args, "find_class",
         2, 2,
         &module_name, &global_name)) {
         goto exit;
@@ -398,7 +398,7 @@ PyDoc_STRVAR(_pickle_dump__doc__,
 "*buffer_callback* is not None and *protocol* is None or smaller than 5.");
 
 #define _PICKLE_DUMP_METHODDEF    \
-    {"dump", (PyCFunction)_pickle_dump, METH_FASTCALL|METH_KEYWORDS, _pickle_dump__doc__},
+    {"dump", (PyCFunction)_pickle_dump, METH_FASTCALL, _pickle_dump__doc__},
 
 static PyObject *
 _pickle_dump_impl(PyObject *module, PyObject *obj, PyObject *file,
@@ -406,7 +406,7 @@ _pickle_dump_impl(PyObject *module, PyObject *obj, PyObject *file,
                   PyObject *buffer_callback);
 
 static PyObject *
-_pickle_dump(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+_pickle_dump(PyObject *module, PyObject **args, Py_ssize_t nargs, PyObject *kwnames)
 {
     PyObject *return_value = NULL;
     static const char * const _keywords[] = {"obj", "file", "protocol", "fix_imports", "buffer_callback", NULL};
@@ -417,7 +417,7 @@ _pickle_dump(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject
     int fix_imports = 1;
     PyObject *buffer_callback = NULL;
 
-    if (!_PyArg_ParseStackAndKeywords(args, nargs, kwnames, &_parser,
+    if (!_PyArg_ParseStack(args, nargs, kwnames, &_parser,
         &obj, &file, &protocol, &fix_imports, &buffer_callback)) {
         goto exit;
     }
@@ -452,14 +452,14 @@ PyDoc_STRVAR(_pickle_dumps__doc__,
 "*buffer_callback* is not None and *protocol* is None or smaller than 5.");
 
 #define _PICKLE_DUMPS_METHODDEF    \
-    {"dumps", (PyCFunction)_pickle_dumps, METH_FASTCALL|METH_KEYWORDS, _pickle_dumps__doc__},
+    {"dumps", (PyCFunction)_pickle_dumps, METH_FASTCALL, _pickle_dumps__doc__},
 
 static PyObject *
 _pickle_dumps_impl(PyObject *module, PyObject *obj, PyObject *protocol,
                    int fix_imports, PyObject *buffer_callback);
 
 static PyObject *
-_pickle_dumps(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+_pickle_dumps(PyObject *module, PyObject **args, Py_ssize_t nargs, PyObject *kwnames)
 {
     PyObject *return_value = NULL;
     static const char * const _keywords[] = {"obj", "protocol", "fix_imports", "buffer_callback", NULL};
@@ -469,7 +469,7 @@ _pickle_dumps(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObjec
     int fix_imports = 1;
     PyObject *buffer_callback = NULL;
 
-    if (!_PyArg_ParseStackAndKeywords(args, nargs, kwnames, &_parser,
+    if (!_PyArg_ParseStack(args, nargs, kwnames, &_parser,
         &obj, &protocol, &fix_imports, &buffer_callback)) {
         goto exit;
     }
@@ -509,7 +509,7 @@ PyDoc_STRVAR(_pickle_load__doc__,
 "string instances as bytes objects.");
 
 #define _PICKLE_LOAD_METHODDEF    \
-    {"load", (PyCFunction)_pickle_load, METH_FASTCALL|METH_KEYWORDS, _pickle_load__doc__},
+    {"load", (PyCFunction)_pickle_load, METH_FASTCALL, _pickle_load__doc__},
 
 static PyObject *
 _pickle_load_impl(PyObject *module, PyObject *file, int fix_imports,
@@ -517,7 +517,7 @@ _pickle_load_impl(PyObject *module, PyObject *file, int fix_imports,
                   PyObject *buffers);
 
 static PyObject *
-_pickle_load(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+_pickle_load(PyObject *module, PyObject **args, Py_ssize_t nargs, PyObject *kwnames)
 {
     PyObject *return_value = NULL;
     static const char * const _keywords[] = {"file", "fix_imports", "encoding", "errors", "buffers", NULL};
@@ -528,7 +528,7 @@ _pickle_load(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject
     const char *errors = "strict";
     PyObject *buffers = NULL;
 
-    if (!_PyArg_ParseStackAndKeywords(args, nargs, kwnames, &_parser,
+    if (!_PyArg_ParseStack(args, nargs, kwnames, &_parser,
         &file, &fix_imports, &encoding, &errors, &buffers)) {
         goto exit;
     }
@@ -559,7 +559,7 @@ PyDoc_STRVAR(_pickle_loads__doc__,
 "string instances as bytes objects.");
 
 #define _PICKLE_LOADS_METHODDEF    \
-    {"loads", (PyCFunction)_pickle_loads, METH_FASTCALL|METH_KEYWORDS, _pickle_loads__doc__},
+    {"loads", (PyCFunction)_pickle_loads, METH_FASTCALL, _pickle_loads__doc__},
 
 static PyObject *
 _pickle_loads_impl(PyObject *module, PyObject *data, int fix_imports,
@@ -567,7 +567,7 @@ _pickle_loads_impl(PyObject *module, PyObject *data, int fix_imports,
                    PyObject *buffers);
 
 static PyObject *
-_pickle_loads(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+_pickle_loads(PyObject *module, PyObject **args, Py_ssize_t nargs, PyObject *kwnames)
 {
     PyObject *return_value = NULL;
     static const char * const _keywords[] = {"data", "fix_imports", "encoding", "errors", "buffers", NULL};
@@ -578,7 +578,7 @@ _pickle_loads(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObjec
     const char *errors = "strict";
     PyObject *buffers = NULL;
 
-    if (!_PyArg_ParseStackAndKeywords(args, nargs, kwnames, &_parser,
+    if (!_PyArg_ParseStack(args, nargs, kwnames, &_parser,
         &data, &fix_imports, &encoding, &errors, &buffers)) {
         goto exit;
     }
@@ -587,4 +587,4 @@ _pickle_loads(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObjec
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=d62b06f0ac75582c input=a9049054013a1b77]*/
+/*[clinic end generated code: output=3c1f5c0f341379d8 input=a9049054013a1b77]*/
