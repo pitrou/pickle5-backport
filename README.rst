@@ -26,4 +26,9 @@ Detailed documentation can be found in PEP 574 and the standard
 `pickle documentation <https://docs.python.org/3.8/library/pickle.html>`_.
 
 .. image:: https://travis-ci.org/pitrou/pickle5-backport.svg?branch=master
-    :target: https://travis-ci.org/pitrou/pickle5-backport
+   :target: https://travis-ci.org/pitrou/pickle5-backport
+   :align: left
+
+.. image:: https://ci.appveyor.com/api/projects/status/hk4lrl81wp0q283o/branch/master?svg=true
+   :target: https://ci.appveyor.com/project/pitrou/pickle5-backport/branch/master
+   :align: left
