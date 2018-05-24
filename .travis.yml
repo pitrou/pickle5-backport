@@ -1,0 +1,21 @@
+language: python
+
+dist: trusty
+
+env:
+  - PY_VENV=$TRAVIS_BUILD_DIR/venv
+
+python:
+  - "3.6"
+  - "3.7-dev"
+
+install:
+  - python -m venv $PY_VENV
+  - $PY_VENV/bin/python -m pip install -r requirements.txt
+
+before_script:
+  - $PY_VENV/bin/python setup.py install
+
+script:
+  - cd /tmp
+  - $PY_VENV/bin/python -m pickle5.test.test_pickle
