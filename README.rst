@@ -24,3 +24,6 @@ to be imported is ``pickle5``:
 
 Detailed documentation can be found in PEP 574 and the standard
 `pickle documentation <https://docs.python.org/3.8/library/pickle.html>`_.
+
+.. image:: https://travis-ci.org/pitrou/pickle5-backport.svg?branch=master
+    :target: https://travis-ci.org/pitrou/pickle5-backport
