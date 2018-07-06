@@ -1,6 +1,7 @@
 language: python
 
-dist: trusty
+dist: xenial
+sudo: true
 
 notifications:
   email: false
@@ -12,7 +13,7 @@ env:
 
 python:
   - "3.6"
-  - "3.7-dev"
+  - "3.7"
 
 install:
   - python -m venv $PY_VENV
