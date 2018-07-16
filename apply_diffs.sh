@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Port the newest contents of the CPython "pickle5" branch and apply them
+# to this project tree.
+
 CPYTHON=../default
 
 cp -f $CPYTHON/Include/picklebufobject.h pickle5/

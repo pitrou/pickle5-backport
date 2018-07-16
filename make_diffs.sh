@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Generate the source diff necessary to port the CPython "pickle5" branch
+# to this project tree.  This (ideally) only needs to be done once.
+
 # DIFF=colordiff
 DIFF="diff -u"
 
