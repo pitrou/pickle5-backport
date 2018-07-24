@@ -790,19 +790,21 @@ class _Pickler:
             raise PicklingError("PickleBuffer can only pickled with "
                                 "protocol >= 5")
         with memoryview(obj) as m:
+            in_band = True
             if self._buffer_callback is not None:
-                # Write data out-of-band
-                self._buffer_callback([obj])
-                self.write(NEXT_BUFFER)
-                if m.readonly:
-                    self.write(READONLY_BUFFER)
-            else:
+                in_band = bool(self._buffer_callback(obj))
+            if in_band:
                 # Write data in-band
-                # TODO avoid copy here
+                # XXX we could avoid a copy here
                 if m.readonly:
                     self.save_bytes(bytes(m))
                 else:
                     self.save_bytearray(bytearray(m))
+            else:
+                # Write data out-of-band
+                self.write(NEXT_BUFFER)
+                if m.readonly:
+                    self.write(READONLY_BUFFER)
 
     dispatch[PickleBuffer] = save_picklebuffer
 

@@ -2500,6 +2500,13 @@ class AbstractPickleTests(unittest.TestCase):
                                      1 if readonly else 0)
                     self.assertEqual(count_opcode(pickle.BYTEARRAY8, data),
                                      0 if readonly else 1)
+                    # Return a true value from buffer_callback should have
+                    # the same effect
+                    def buffer_callback(obj):
+                        return True
+                    data2 = self.dumps(obj, proto,
+                                       buffer_callback=buffer_callback)
+                    self.assertEqual(data2, data)
 
                 new = self.loads(data)
                 # It's a copy
@@ -2516,10 +2523,10 @@ class AbstractPickleTests(unittest.TestCase):
                 # Need protocol >= 5 for buffer_callback
                 with self.assertRaises(ValueError):
                     self.dumps(obj, proto,
-                               buffer_callback=[].extend)
+                               buffer_callback=[].append)
             for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
                 buffers = []
-                buffer_callback = buffers.extend
+                buffer_callback = buffers.append
                 data = self.dumps(obj, proto,
                                   buffer_callback=buffer_callback)
                 self.assertNotIn(b"foo", data)
@@ -2545,7 +2552,7 @@ class AbstractPickleTests(unittest.TestCase):
         obj = ZeroCopyBytes(b"foo")
         for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
             buffers = []
-            buffer_callback = buffers.extend
+            buffer_callback = buffers.append
             data = self.dumps(obj, proto, buffer_callback=buffer_callback)
 
             buffers = map(bytearray, buffers)
@@ -2570,7 +2577,7 @@ class AbstractPickleTests(unittest.TestCase):
     def test_buffers_error(self):
         pb = pickle.PickleBuffer(b"foo")
         for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
-            data = self.dumps(pb, proto, buffer_callback=[].extend)
+            data = self.dumps(pb, proto, buffer_callback=[].append)
             # Non iterable buffers
             with self.assertRaises(TypeError):
                 self.loads(data, buffers=object())
@@ -2896,10 +2903,10 @@ class AbstractPickleModuleTests(unittest.TestCase):
             # Need protocol >= 5 for buffer_callback
             with self.assertRaises(ValueError):
                 dumps(obj, protocol=proto,
-                      buffer_callback=[].extend)
+                      buffer_callback=[].append)
         for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
             buffers = []
-            buffer_callback = buffers.extend
+            buffer_callback = buffers.append
             data = dumps(obj, protocol=proto,
                          buffer_callback=buffer_callback)
             self.assertNotIn(b"foo", data)
