@@ -110,7 +110,7 @@ picklebuf_clear(PyMemoryViewObject *self)
 static void
 picklebuf_dealloc(PyPickleBufferObject *self)
 {
-    _PyObject_GC_UNTRACK(self);
+    PyObject_GC_UnTrack(self);
     if (self->weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject *) self);
     PyBuffer_Release(&self->view);
