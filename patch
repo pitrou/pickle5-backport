@@ -1,5 +1,5 @@
---- ../default/Include/picklebufobject.h	2018-07-16 19:17:16.211413452 +0200
-+++ pickle5/picklebufobject.h	2018-07-16 19:43:55.913970349 +0200
+--- ../default/Include/picklebufobject.h	2019-01-15 15:04:00.819294529 +0100
++++ pickle5/picklebufobject.h	2019-01-15 15:16:13.142074250 +0100
 @@ -10,18 +10,18 @@
  
  #ifndef Py_LIMITED_API
@@ -23,8 +23,8 @@
  
  #endif /* !Py_LIMITED_API */
  
---- ../default/Objects/picklebufobject.c	2018-07-16 19:17:16.243413748 +0200
-+++ pickle5/picklebufobject.c	2018-07-16 19:41:46.200778517 +0200
+--- ../default/Objects/picklebufobject.c	2019-01-15 15:08:06.366713656 +0100
++++ pickle5/picklebufobject.c	2019-01-15 15:16:13.142074250 +0100
 @@ -4,6 +4,8 @@
  #include "Python.h"
  #include <stddef.h>
@@ -34,8 +34,8 @@
  typedef struct {
      PyObject_HEAD
      /* The view exported by the original object */
---- ../default/Modules/_pickle.c	2018-07-16 19:44:27.110256947 +0200
-+++ pickle5/_pickle.c	2018-07-16 19:43:55.909970311 +0200
+--- ../default/Modules/_pickle.c	2019-01-15 15:04:27.099637426 +0100
++++ pickle5/_pickle.c	2019-01-15 15:31:55.027138489 +0100
 @@ -1,4 +1,7 @@
  
 +#include "compat.h"
@@ -44,19 +44,21 @@
  /* Core extension modules are built-in on some platforms (e.g. Windows). */
  #ifdef Py_BUILD_CORE
  #define Py_BUILD_CORE_BUILTIN
-@@ -707,7 +710,11 @@
+@@ -703,7 +706,13 @@
  static PyTypeObject Pickler_Type;
  static PyTypeObject Unpickler_Type;
  
 +#if PY_VERSION_HEX < 0x03070000
 +#include "clinic/_pickle-3.6.c.h"
++#elif PY_VERSION_HEX < 0x03080000
++#include "clinic/_pickle-3.7.c.h"
 +#else
  #include "clinic/_pickle.c.h"
 +#endif
  
  /*************************************************************************
   A custom hashtable mapping void* to Python ints. This is used by the pickler
-@@ -7779,11 +7786,25 @@
+@@ -7781,11 +7790,25 @@
      return NULL;
  }
  
@@ -82,7 +84,7 @@
      {NULL, NULL} /* sentinel */
  };
  
-@@ -7867,6 +7888,8 @@
+@@ -7869,6 +7892,8 @@
      Py_INCREF(&Unpickler_Type);
      if (PyModule_AddObject(m, "Unpickler", (PyObject *)&Unpickler_Type) < 0)
          return NULL;
@@ -91,8 +93,8 @@
      Py_INCREF(&PyPickleBuffer_Type);
      if (PyModule_AddObject(m, "PickleBuffer",
                             (PyObject *)&PyPickleBuffer_Type) < 0)
---- ../default/Lib/pickle.py	2018-07-16 19:44:27.106256909 +0200
-+++ pickle5/pickle.py	2018-07-16 19:43:55.913970349 +0200
+--- ../default/Lib/pickle.py	2019-01-15 15:04:00.899295573 +0100
++++ pickle5/pickle.py	2019-01-15 15:16:13.146074308 +0100
 @@ -36,7 +36,7 @@
  import codecs
  import _compat_pickle
@@ -115,7 +117,7 @@
                  self.save_global(obj)
                  return
  
-@@ -1359,7 +1363,9 @@
+@@ -1361,7 +1365,9 @@
          buf = self.stack[-1]
          with memoryview(buf) as m:
              if not m.readonly:
@@ -126,7 +128,7 @@
      dispatch[READONLY_BUFFER[0]] = load_readonly_buffer
  
      def load_short_binstring(self):
-@@ -1712,7 +1718,7 @@
+@@ -1714,7 +1720,7 @@
  
  # Use the faster _pickle if possible
  try:
@@ -135,8 +137,8 @@
          PickleError,
          PicklingError,
          UnpicklingError,
---- ../default/Lib/pickletools.py	2018-07-16 19:17:16.215413489 +0200
-+++ pickle5/pickletools.py	2018-07-16 19:41:46.200778517 +0200
+--- ../default/Lib/pickletools.py	2019-01-15 15:04:27.119637687 +0100
++++ pickle5/pickletools.py	2019-01-15 15:16:13.146074308 +0100
 @@ -12,10 +12,11 @@
  
  import codecs
@@ -150,8 +152,8 @@
  __all__ = ['dis', 'genops', 'optimize']
  
  bytes_types = pickle.bytes_types
---- ../default/Lib/test/pickletester.py	2018-07-16 19:44:27.106256909 +0200
-+++ pickle5/test/pickletester.py	2018-07-16 19:43:55.913970349 +0200
+--- ../default/Lib/test/pickletester.py	2019-01-15 15:04:00.919295834 +0100
++++ pickle5/test/pickletester.py	2019-01-15 15:16:13.146074308 +0100
 @@ -3,8 +3,6 @@
  import dbm
  import io
@@ -185,8 +187,8 @@
              got = filelike.getvalue()
              self.assertEqual(expected, got)
  
---- ../default/Lib/test/test_pickle.py	2018-07-16 19:17:16.223413563 +0200
-+++ pickle5/test/test_pickle.py	2018-07-16 19:41:46.204778555 +0200
+--- ../default/Lib/test/test_pickle.py	2019-01-15 15:04:27.107637529 +0100
++++ pickle5/test/test_pickle.py	2019-01-15 15:16:13.146074308 +0100
 @@ -1,7 +1,6 @@
  from _compat_pickle import (IMPORT_MAPPING, REVERSE_IMPORT_MAPPING,
                              NAME_MAPPING, REVERSE_NAME_MAPPING)
