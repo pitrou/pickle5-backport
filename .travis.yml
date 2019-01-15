@@ -11,9 +11,14 @@ env:
     - PY_VENV=$TRAVIS_BUILD_DIR/venv
     - PYTHON=$PY_VENV/bin/python
 
-python:
-  - "3.6"
-  - "3.7"
+matrix:
+  include:
+  - python: "3.6"
+    dist: trusty
+  - python: "3.7"
+    dist: trusty
+  - python: "3.6"
+  - python: "3.7"
 
 install:
   - python -m venv $PY_VENV
