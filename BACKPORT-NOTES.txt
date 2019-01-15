@@ -9,3 +9,6 @@ then:
 
     ./python Tools/clinic/clinic.py Modules/_pickle.c
     cp Modules/clinic/_pickle.c.h ../pickle5-backport/pickle5/clinic/_pickle-3.6.c.h
+
+* Same for 3.7
+

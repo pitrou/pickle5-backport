@@ -708,6 +708,8 @@ static PyTypeObject Unpickler_Type;
 
 #if PY_VERSION_HEX < 0x03070000
 #include "clinic/_pickle-3.6.c.h"
+#elif PY_VERSION_HEX < 0x03080000
+#include "clinic/_pickle-3.7.c.h"
 #else
 #include "clinic/_pickle.c.h"
 #endif

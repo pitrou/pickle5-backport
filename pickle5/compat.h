@@ -1,5 +1,27 @@
 #include "Python.h"
 
+// CPython 3.8 API backports
+
+#if PY_VERSION_HEX < 0x03080000
+
+/* Convenience function to get a builtin from its name */
+PyObject *
+_PyEval_GetBuiltinId(_Py_Identifier *name)
+{
+    PyObject *attr = _PyDict_GetItemIdWithError(PyEval_GetBuiltins(), name);
+    if (attr) {
+        Py_INCREF(attr);
+    }
+    else if (!PyErr_Occurred()) {
+        PyErr_SetObject(PyExc_AttributeError, _PyUnicode_FromId(name));
+    }
+    return attr;
+}
+
+#endif
+
+// CPython 3.7 API backports
+
 #if PY_VERSION_HEX < 0x03070000
 
 #define Py_UNREACHABLE() abort()
@@ -91,20 +113,6 @@ PyImport_GetModule(PyObject *name)
     }
     Py_DECREF(modules);
     return m;
-}
-
-/* Convenience function to get a builtin from its name */
-PyObject *
-_PyEval_GetBuiltinId(_Py_Identifier *name)
-{
-    PyObject *attr = _PyDict_GetItemIdWithError(PyEval_GetBuiltins(), name);
-    if (attr) {
-        Py_INCREF(attr);
-    }
-    else if (!PyErr_Occurred()) {
-        PyErr_SetObject(PyExc_AttributeError, _PyUnicode_FromId(name));
-    }
-    return attr;
 }
 
 #endif
