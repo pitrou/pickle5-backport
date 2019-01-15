@@ -1,3 +1,5 @@
+import os
+
 from setuptools import setup, Extension, find_packages
 
 
@@ -5,11 +7,17 @@ with open("README.rst", "r") as fh:
     long_description = fh.read()
 
 
+extra_compile_args = []
+if os.name == 'posix':
+    # Assume a gcc/clang-compatible CLI and enable C99 on old compilers
+    extra_compile_args.append('-std=c99')
+
 ext_modules = [
     Extension('pickle5._pickle',
               ['pickle5/_pickle.c', 'pickle5/picklebufobject.c'],
               depends=['pickle5/picklebufobject.h',
-                       'pickle5/compat.h']),
+                       'pickle5/compat.h'],
+              extra_compile_args=extra_compile_args),
     ]
 
 setup(
