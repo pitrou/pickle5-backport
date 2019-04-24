@@ -1134,6 +1134,8 @@ _Pickler_New(void)
         Py_DECREF(self);
         return NULL;
     }
+
+    PyObject_GC_Track(self);
     return self;
 }
 
@@ -1600,6 +1602,7 @@ _Unpickler_New(void)
         return NULL;
     }
 
+    PyObject_GC_Track(self);
     return self;
 }
 
@@ -2501,6 +2504,13 @@ save_picklebuffer(PicklerObject *self, PyObject *obj)
     }
     const Py_buffer* view = PyPickleBuffer_GetBuffer(obj);
     if (view == NULL) {
+        return -1;
+    }
+    if (view->suboffsets != NULL || !PyBuffer_IsContiguous(view, 'A')) {
+        PickleState *st = _Pickle_GetGlobalState();
+        PyErr_SetString(st->PicklingError,
+                        "PickleBuffer can not be pickled when "
+                        "pointing to a non-contiguous buffer");
         return -1;
     }
     int in_band = 1;
@@ -6993,13 +7003,13 @@ _pickle_Unpickler_find_class_impl(UnpicklerObject *self,
         }
     }
 
-    module = PyImport_GetModule(module_name);
+    /*
+     * we don't use PyImport_GetModule here, because it can return partially-
+     * initialised modules, which then cause the getattribute to fail.
+     */
+    module = PyImport_Import(module_name);
     if (module == NULL) {
-        if (PyErr_Occurred())
-            return NULL;
-        module = PyImport_Import(module_name);
-        if (module == NULL)
-            return NULL;
+        return NULL;
     }
     global = getattribute(module, global_name, self->proto >= 4);
     Py_DECREF(module);

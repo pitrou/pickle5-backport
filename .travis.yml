@@ -28,4 +28,5 @@ before_script:
 
 script:
   - cd /tmp
+  - $PYTHON -m pickle5.test.test_picklebuffer -v
   - $PYTHON -m pickle5.test.test_pickle

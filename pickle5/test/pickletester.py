@@ -3,16 +3,25 @@ import copyreg
 import dbm
 import io
 import functools
+import os
+import shutil
 import struct
 import sys
+import threading
 import unittest
 import weakref
+from textwrap import dedent
 from http.cookies import SimpleCookie
+
+try:
+    import _testbuffer
+except ImportError:
+    _testbuffer = None
 
 from test import support
 from test.support import (
     TestFailed, TESTFN, run_with_locale, no_tracing,
-    _2G, _4G, bigmemtest,
+    _2G, _4G, bigmemtest, reap_threads, forget,
     )
 
 import pickle5 as pickle
@@ -175,6 +184,10 @@ def create_dynamic_class(name, bases):
 
 
 class ZeroCopyBytes(bytes):
+    readonly = True
+    c_contiguous = True
+    f_contiguous = True
+    zero_copy_reconstruct = True
 
     def __reduce_ex__(self, protocol):
         if protocol >= 5:
@@ -199,6 +212,10 @@ class ZeroCopyBytes(bytes):
 
 
 class ZeroCopyBytearray(bytearray):
+    readonly = False
+    c_contiguous = True
+    f_contiguous = True
+    zero_copy_reconstruct = True
 
     def __reduce_ex__(self, protocol):
         if protocol >= 5:
@@ -220,6 +237,82 @@ class ZeroCopyBytearray(bytearray):
                 return obj
             else:
                 return cls(obj)
+
+
+if _testbuffer is not None:
+
+    class PicklableNDArray:
+        # A not-really-zero-copy picklable ndarray, as the ndarray()
+        # constructor doesn't allow for it
+
+        zero_copy_reconstruct = False
+
+        def __init__(self, *args, **kwargs):
+            self.array = _testbuffer.ndarray(*args, **kwargs)
+
+        def __getitem__(self, idx):
+            cls = type(self)
+            new = cls.__new__(cls)
+            new.array = self.array[idx]
+            return new
+
+        @property
+        def readonly(self):
+            return self.array.readonly
+
+        @property
+        def c_contiguous(self):
+            return self.array.c_contiguous
+
+        @property
+        def f_contiguous(self):
+            return self.array.f_contiguous
+
+        def __eq__(self, other):
+            if not isinstance(other, PicklableNDArray):
+                return NotImplemented
+            return (other.array.format == self.array.format and
+                    other.array.shape == self.array.shape and
+                    other.array.strides == self.array.strides and
+                    other.array.readonly == self.array.readonly and
+                    other.array.tobytes() == self.array.tobytes())
+
+        def __ne__(self, other):
+            if not isinstance(other, PicklableNDArray):
+                return NotImplemented
+            return not (self == other)
+
+        def __repr__(self):
+            return (f"{type(self)}(shape={self.array.shape},"
+                    f"strides={self.array.strides}, "
+                    f"bytes={self.array.tobytes()})")
+
+        def __reduce_ex__(self, protocol):
+            if not self.array.contiguous:
+                raise NotImplementedError("Reconstructing a non-contiguous "
+                                          "ndarray does not seem possible")
+            ndarray_kwargs = {"shape": self.array.shape,
+                              "strides": self.array.strides,
+                              "format": self.array.format,
+                              "flags": (0 if self.readonly
+                                        else _testbuffer.ND_WRITABLE)}
+            pb = pickle.PickleBuffer(self.array)
+            if protocol >= 5:
+                return (type(self)._reconstruct,
+                        (pb, ndarray_kwargs))
+            else:
+                # Need to serialize the bytes in physical order
+                with pb.raw() as m:
+                    return (type(self)._reconstruct,
+                            (m.tobytes(), ndarray_kwargs))
+
+        @classmethod
+        def _reconstruct(cls, obj, kwargs):
+            with memoryview(obj) as m:
+                # For some reason, ndarray() wants a list of integers...
+                # XXX This only works if format == 'B'
+                items = list(m.tobytes())
+            return cls(items, **kwargs)
 
 
 # DATA0 .. DATA4 are the pickles we expect under the various protocols, for
@@ -1253,6 +1346,67 @@ class AbstractUnpickleTests(unittest.TestCase):
         for p in badpickles:
             self.check_unpickling_error(self.truncated_errors, p)
 
+    @reap_threads
+    def test_unpickle_module_race(self):
+        # https://bugs.python.org/issue34572
+        locker_module = dedent("""
+        import threading
+        barrier = threading.Barrier(2)
+        """)
+        locking_import_module = dedent("""
+        import locker
+        locker.barrier.wait()
+        class ToBeUnpickled(object):
+            pass
+        """)
+
+        os.mkdir(TESTFN)
+        self.addCleanup(shutil.rmtree, TESTFN)
+        sys.path.insert(0, TESTFN)
+        self.addCleanup(sys.path.remove, TESTFN)
+        with open(os.path.join(TESTFN, "locker.py"), "wb") as f:
+            f.write(locker_module.encode('utf-8'))
+        with open(os.path.join(TESTFN, "locking_import.py"), "wb") as f:
+            f.write(locking_import_module.encode('utf-8'))
+        self.addCleanup(forget, "locker")
+        self.addCleanup(forget, "locking_import")
+
+        import locker
+
+        pickle_bytes = (
+            b'\x80\x03clocking_import\nToBeUnpickled\nq\x00)\x81q\x01.')
+
+        # Then try to unpickle two of these simultaneously
+        # One of them will cause the module import, and we want it to block
+        # until the other one either:
+        #   - fails (before the patch for this issue)
+        #   - blocks on the import lock for the module, as it should
+        results = []
+        barrier = threading.Barrier(3)
+        def t():
+            # This ensures the threads have all started
+            # presumably barrier release is faster than thread startup
+            barrier.wait()
+            results.append(pickle.loads(pickle_bytes))
+
+        t1 = threading.Thread(target=t)
+        t2 = threading.Thread(target=t)
+        t1.start()
+        t2.start()
+
+        barrier.wait()
+        # could have delay here
+        locker.barrier.wait()
+
+        t1.join()
+        t2.join()
+
+        from locking_import import ToBeUnpickled
+        self.assertEqual(
+            [type(x) for x in results],
+            [ToBeUnpickled] * 2)
+
+
 
 class AbstractPickleTests(unittest.TestCase):
     # Subclass must define self.dumps, self.loads.
@@ -1600,11 +1754,10 @@ class AbstractPickleTests(unittest.TestCase):
             s = self.dumps(t, proto)
             u = self.loads(s)
             self.assert_is_copy(t, u)
-            if hasattr(os, "stat"):
-                t = os.stat(os.curdir)
-                s = self.dumps(t, proto)
-                u = self.loads(s)
-                self.assert_is_copy(t, u)
+            t = os.stat(os.curdir)
+            s = self.dumps(t, proto)
+            u = self.loads(s)
+            self.assert_is_copy(t, u)
             if hasattr(os, "statvfs"):
                 t = os.statvfs(os.curdir)
                 s = self.dumps(t, proto)
@@ -2486,20 +2639,44 @@ class AbstractPickleTests(unittest.TestCase):
             with self.assertRaises((AttributeError, pickle.PicklingError)):
                 pickletools.dis(self.dumps(f, proto))
 
+    #
+    # PEP 574 tests below
+    #
+
+    def buffer_like_objects(self):
+        # Yield buffer-like objects with the bytestring "abcdef" in them
+        bytestring = b"abcdefgh"
+        yield ZeroCopyBytes(bytestring)
+        yield ZeroCopyBytearray(bytestring)
+        if _testbuffer is not None:
+            items = list(bytestring)
+            value = int.from_bytes(bytestring, byteorder='little')
+            for flags in (0, _testbuffer.ND_WRITABLE):
+                # 1-D, contiguous
+                yield PicklableNDArray(items, format='B', shape=(8,),
+                                       flags=flags)
+                # 2-D, C-contiguous
+                yield PicklableNDArray(items, format='B', shape=(4, 2),
+                                       strides=(2, 1), flags=flags)
+                # 2-D, Fortran-contiguous
+                yield PicklableNDArray(items, format='B',
+                                       shape=(4, 2), strides=(1, 4),
+                                       flags=flags)
+
     def test_in_band_buffers(self):
         # Test in-band buffers (PEP 574)
-        for obj, readonly in [(ZeroCopyBytes(b"foo"), True),
-                              (ZeroCopyBytearray(b"foo"), False),
-                              ]:
+        for obj in self.buffer_like_objects():
             for proto in range(0, pickle.HIGHEST_PROTOCOL + 1):
                 data = self.dumps(obj, proto)
-                self.assertIn(b"foo", data)
+                if obj.c_contiguous and proto >= 5:
+                    # The raw memory bytes are serialized in physical order
+                    self.assertIn(b"abcdefgh", data)
                 self.assertEqual(count_opcode(pickle.NEXT_BUFFER, data), 0)
                 if proto >= 5:
                     self.assertEqual(count_opcode(pickle.SHORT_BINBYTES, data),
-                                     1 if readonly else 0)
+                                     1 if obj.readonly else 0)
                     self.assertEqual(count_opcode(pickle.BYTEARRAY8, data),
-                                     0 if readonly else 1)
+                                     0 if obj.readonly else 1)
                     # Return a true value from buffer_callback should have
                     # the same effect
                     def buffer_callback(obj):
@@ -2514,11 +2691,12 @@ class AbstractPickleTests(unittest.TestCase):
                 self.assertIs(type(new), type(obj))
                 self.assertEqual(new, obj)
 
+    # XXX Unfortunately cannot test non-contiguous array
+    # (see comment in PicklableNDArray.__reduce_ex__)
+
     def test_oob_buffers(self):
         # Test out-of-band buffers (PEP 574)
-        for obj, readonly in [(ZeroCopyBytes(b"foo"), True),
-                              (ZeroCopyBytearray(b"foo"), False),
-                              ]:
+        for obj in self.buffer_like_objects():
             for proto in range(0, 5):
                 # Need protocol >= 5 for buffer_callback
                 with self.assertRaises(ValueError):
@@ -2526,30 +2704,41 @@ class AbstractPickleTests(unittest.TestCase):
                                buffer_callback=[].append)
             for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
                 buffers = []
-                buffer_callback = buffers.append
+                buffer_callback = lambda pb: buffers.append(pb.raw())
                 data = self.dumps(obj, proto,
                                   buffer_callback=buffer_callback)
-                self.assertNotIn(b"foo", data)
+                self.assertNotIn(b"abcdefgh", data)
                 self.assertEqual(count_opcode(pickle.SHORT_BINBYTES, data), 0)
                 self.assertEqual(count_opcode(pickle.BYTEARRAY8, data), 0)
                 self.assertEqual(count_opcode(pickle.NEXT_BUFFER, data), 1)
                 self.assertEqual(count_opcode(pickle.READONLY_BUFFER, data),
-                                 1 if readonly else 0)
+                                 1 if obj.readonly else 0)
 
-                self.assertEqual(bytes(buffers[0]), b"foo")
+                if obj.c_contiguous:
+                    self.assertEqual(bytes(buffers[0]), b"abcdefgh")
                 # Need buffers argument to unpickle properly
                 with self.assertRaises(pickle.UnpicklingError):
                     self.loads(data)
-                # Zero-copy achieved
+
                 new = self.loads(data, buffers=buffers)
-                self.assertIs(new, obj)
+                if obj.zero_copy_reconstruct:
+                    # Zero-copy achieved
+                    self.assertIs(new, obj)
+                else:
+                    self.assertIs(type(new), type(obj))
+                    self.assertEqual(new, obj)
                 # Non-sequence buffers accepted too
                 new = self.loads(data, buffers=iter(buffers))
-                self.assertIs(new, obj)
+                if obj.zero_copy_reconstruct:
+                    # Zero-copy achieved
+                    self.assertIs(new, obj)
+                else:
+                    self.assertIs(type(new), type(obj))
+                    self.assertEqual(new, obj)
 
     def test_oob_buffers_writable_to_readonly(self):
         # Test reconstructing readonly object from writable buffer
-        obj = ZeroCopyBytes(b"foo")
+        obj = ZeroCopyBytes(b"foobar")
         for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
             buffers = []
             buffer_callback = buffers.append
@@ -2562,7 +2751,7 @@ class AbstractPickleTests(unittest.TestCase):
 
     def test_picklebuffer_error(self):
         # PickleBuffer forbidden with protocol < 5
-        pb = pickle.PickleBuffer(b"foo")
+        pb = pickle.PickleBuffer(b"foobar")
         for proto in range(0, 5):
             with self.assertRaises(pickle.PickleError):
                 self.dumps(pb, proto)
@@ -2570,12 +2759,12 @@ class AbstractPickleTests(unittest.TestCase):
     def test_buffer_callback_error(self):
         def buffer_callback(buffers):
             1/0
-        pb = pickle.PickleBuffer(b"foo")
+        pb = pickle.PickleBuffer(b"foobar")
         with self.assertRaises(ZeroDivisionError):
             self.dumps(pb, 5, buffer_callback=buffer_callback)
 
     def test_buffers_error(self):
-        pb = pickle.PickleBuffer(b"foo")
+        pb = pickle.PickleBuffer(b"foobar")
         for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
             data = self.dumps(pb, proto, buffer_callback=[].append)
             # Non iterable buffers
