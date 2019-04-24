@@ -18,6 +18,11 @@ try:
 except ImportError:
     _testbuffer = None
 
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
 from test import support
 from test.support import (
     TestFailed, TESTFN, run_with_locale, no_tracing,
@@ -2773,6 +2778,51 @@ class AbstractPickleTests(unittest.TestCase):
             # Buffer iterable exhausts too early
             with self.assertRaises(pickle.UnpicklingError):
                 self.loads(data, buffers=[])
+
+    @unittest.skipIf(np is None, "Test needs Numpy")
+    def test_buffers_numpy(self):
+        def check_no_copy(x, y):
+            np.testing.assert_equal(x, y)
+            self.assertEqual(x.ctypes.data, y.ctypes.data)
+
+        def check_copy(x, y):
+            np.testing.assert_equal(x, y)
+            self.assertNotEqual(x.ctypes.data, y.ctypes.data)
+
+        def check_array(arr):
+            # In-band
+            for proto in range(0, pickle.HIGHEST_PROTOCOL + 1):
+                data = self.dumps(arr, proto)
+                new = self.loads(data)
+                check_copy(arr, new)
+            for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
+                buffer_callback = lambda _: True
+                data = self.dumps(arr, proto, buffer_callback=buffer_callback)
+                new = self.loads(data)
+                check_copy(arr, new)
+            # Out-of-band
+            for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
+                buffers = []
+                buffer_callback = buffers.append
+                data = self.dumps(arr, proto, buffer_callback=buffer_callback)
+                new = self.loads(data, buffers=buffers)
+                if arr.flags.c_contiguous or arr.flags.f_contiguous:
+                    check_no_copy(arr, new)
+                else:
+                    check_copy(arr, new)
+
+        # 1-D
+        arr = np.arange(6)
+        check_array(arr)
+        # 1-D, non-contiguous
+        check_array(arr[::2])
+        # 2-D, C-contiguous
+        arr = np.arange(12).reshape((3, 4))
+        check_array(arr)
+        # 2-D, F-contiguous
+        check_array(arr.T)
+        # 2-D, non-contiguous
+        check_array(arr[::2])
 
 
 class BigmemPickleTests(unittest.TestCase):
