@@ -1,5 +1,5 @@
 --- ../default/Include/picklebufobject.h	2019-04-24 21:34:21.441820415 +0200
-+++ pickle5/picklebufobject.h	2019-04-25 00:23:42.638374327 +0200
++++ pickle5/picklebufobject.h	2019-04-25 01:10:27.178803585 +0200
 @@ -10,18 +10,18 @@
  
  #ifndef Py_LIMITED_API
@@ -24,7 +24,7 @@
  #endif /* !Py_LIMITED_API */
  
 --- ../default/Objects/picklebufobject.c	2019-04-24 23:22:09.714808011 +0200
-+++ pickle5/picklebufobject.c	2019-04-25 00:23:42.638374327 +0200
++++ pickle5/picklebufobject.c	2019-04-25 01:10:27.178803585 +0200
 @@ -4,6 +4,8 @@
  #include "Python.h"
  #include <stddef.h>
@@ -35,7 +35,7 @@
      PyObject_HEAD
      /* The view exported by the original object */
 --- ../default/Modules/_pickle.c	2019-04-24 23:56:10.787938850 +0200
-+++ pickle5/_pickle.c	2019-04-25 00:23:42.642374372 +0200
++++ pickle5/_pickle.c	2019-04-25 01:10:27.182803635 +0200
 @@ -1,11 +1,11 @@
 -/* pickle accelerator C extensor: _pickle module.
 - *
@@ -105,7 +105,7 @@
      if (PyModule_AddObject(m, "PickleBuffer",
                             (PyObject *)&PyPickleBuffer_Type) < 0)
 --- ../default/Lib/pickle.py	2019-04-24 23:48:48.962087635 +0200
-+++ pickle5/pickle.py	2019-04-25 00:23:42.642374372 +0200
++++ pickle5/pickle.py	2019-04-25 01:10:27.182803635 +0200
 @@ -36,7 +36,7 @@
  import codecs
  import _compat_pickle
@@ -149,7 +149,7 @@
          PicklingError,
          UnpicklingError,
 --- ../default/Lib/pickletools.py	2019-04-24 21:34:21.505821080 +0200
-+++ pickle5/pickletools.py	2019-04-25 00:23:42.642374372 +0200
++++ pickle5/pickletools.py	2019-04-25 01:10:27.182803635 +0200
 @@ -12,10 +12,11 @@
  
  import codecs
@@ -163,8 +163,8 @@
  __all__ = ['dis', 'genops', 'optimize']
  
  bytes_types = pickle.bytes_types
---- ../default/Lib/test/pickletester.py	2019-04-24 23:52:50.401323266 +0200
-+++ pickle5/test/pickletester.py	2019-04-25 00:23:42.642374372 +0200
+--- ../default/Lib/test/pickletester.py	2019-04-25 01:09:30.430092000 +0200
++++ pickle5/test/pickletester.py	2019-04-25 01:10:27.182803635 +0200
 @@ -4,8 +4,6 @@
  import io
  import functools
@@ -174,7 +174,7 @@
  import shutil
  import struct
  import sys
-@@ -26,7 +24,8 @@
+@@ -31,7 +29,8 @@
      _2G, _4G, bigmemtest, reap_threads, forget,
      )
  
@@ -184,7 +184,7 @@
  
  requires_32b = unittest.skipUnless(sys.maxsize < 2**32,
                                     "test is only meaningful on 32-bit builds")
-@@ -1456,12 +1455,11 @@
+@@ -1461,12 +1460,11 @@
      # of 1.
      def dont_test_disassembly(self):
          from io import StringIO
@@ -199,7 +199,7 @@
              self.assertEqual(expected, got)
  
 --- ../default/Lib/test/test_pickle.py	2019-04-24 23:20:31.049670452 +0200
-+++ pickle5/test/test_pickle.py	2019-04-25 00:23:42.642374372 +0200
++++ pickle5/test/test_pickle.py	2019-04-25 01:10:27.182803635 +0200
 @@ -1,7 +1,6 @@
  from _compat_pickle import (IMPORT_MAPPING, REVERSE_IMPORT_MAPPING,
                              NAME_MAPPING, REVERSE_NAME_MAPPING)
@@ -255,3 +255,21 @@
      support.run_unittest(*tests)
      support.run_doctest(pickle)
  
+--- ../default/Lib/test/test_picklebuffer.py	2019-04-25 01:11:35.679661336 +0200
++++ pickle5/test/test_picklebuffer.py	2019-04-25 01:11:42.103741713 +0200
+@@ -4,13 +4,14 @@
+ """
+ 
+ import gc
+-from pickle import PickleBuffer
+ import sys
+ import weakref
+ import unittest
+ 
+ from test import support
+ 
++from pickle5 import PickleBuffer
++
+ 
+ class B(bytes):
+     pass

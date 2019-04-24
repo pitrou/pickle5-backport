@@ -15,3 +15,4 @@ $DIFF $CPYTHON/Lib/pickle.py pickle5/
 $DIFF $CPYTHON/Lib/pickletools.py pickle5/
 $DIFF $CPYTHON/Lib/test/pickletester.py pickle5/test/
 $DIFF $CPYTHON/Lib/test/test_pickle.py pickle5/test/
+$DIFF $CPYTHON/Lib/test/test_picklebuffer.py pickle5/test/

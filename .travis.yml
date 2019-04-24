@@ -20,7 +20,7 @@ matrix:
 
 install:
   - python -m venv $PY_VENV
-  - $PYTHON -m pip install -U pip wheel setuptools
+  - $PYTHON -m pip install -U pip wheel setuptools numpy
   - $PYTHON -m pip install -r requirements.txt
 
 before_script:
