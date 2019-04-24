@@ -101,7 +101,7 @@ picklebuf_traverse(PyPickleBufferObject *self, visitproc visit, void *arg)
 }
 
 static int
-picklebuf_clear(PyMemoryViewObject *self)
+picklebuf_clear(PyPickleBufferObject *self)
 {
     PyBuffer_Release(&self->view);
     return 0;
@@ -148,6 +148,46 @@ static PyBufferProcs picklebuf_as_buffer = {
 /* Methods */
 
 static PyObject *
+picklebuf_raw(PyPickleBufferObject *self, PyObject *Py_UNUSED(ignored))
+{
+    if (self->view.obj == NULL) {
+        PyErr_SetString(PyExc_ValueError,
+                        "operation forbidden on released PickleBuffer object");
+        return NULL;
+    }
+    if (self->view.suboffsets != NULL
+        || !PyBuffer_IsContiguous(&self->view, 'A')) {
+        PyErr_SetString(PyExc_BufferError,
+                        "cannot extract raw buffer from non-contiguous buffer");
+        return NULL;
+    }
+    PyObject *m = PyMemoryView_FromObject((PyObject *) self);
+    if (m == NULL) {
+        return NULL;
+    }
+    PyMemoryViewObject *mv = (PyMemoryViewObject *) m;
+    assert(mv->view.suboffsets == NULL);
+    /* Mutate memoryview instance to make it a "raw" memoryview */
+    mv->view.format = "B";
+    mv->view.ndim = 1;
+    mv->view.itemsize = 1;
+    /* shape = (length,) */
+    mv->view.shape = &mv->view.len;
+    /* strides = (1,) */
+    mv->view.strides = &mv->view.itemsize;
+    /* Fix memoryview state flags */
+    /* XXX Expose memoryobject.c's init_flags() instead? */
+    mv->flags = _Py_MEMORYVIEW_C | _Py_MEMORYVIEW_FORTRAN;
+    return m;
+}
+
+PyDoc_STRVAR(picklebuf_raw_doc,
+"raw($self, /)\n--\n\
+\n\
+Return a memoryview of the raw memory underlying this buffer.\n\
+Will raise BufferError is the buffer isn't contiguous.");
+
+static PyObject *
 picklebuf_release(PyPickleBufferObject *self, PyObject *Py_UNUSED(ignored))
 {
     PyBuffer_Release(&self->view);
@@ -160,6 +200,7 @@ PyDoc_STRVAR(picklebuf_release_doc,
 Release the underlying buffer exposed by the PickleBuffer object.");
 
 static PyMethodDef picklebuf_methods[] = {
+    {"raw",     (PyCFunction) picklebuf_raw,     METH_NOARGS, picklebuf_raw_doc},
     {"release", (PyCFunction) picklebuf_release, METH_NOARGS, picklebuf_release_doc},
     {NULL,      NULL}
 };

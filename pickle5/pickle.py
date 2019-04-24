@@ -789,7 +789,10 @@ class _Pickler:
         if self.proto < 5:
             raise PicklingError("PickleBuffer can only pickled with "
                                 "protocol >= 5")
-        with memoryview(obj) as m:
+        with obj.raw() as m:
+            if not m.contiguous:
+                raise PicklingError("PickleBuffer can not be pickled when "
+                                    "pointing to a non-contiguous buffer")
             in_band = True
             if self._buffer_callback is not None:
                 in_band = bool(self._buffer_callback(obj))
@@ -797,9 +800,9 @@ class _Pickler:
                 # Write data in-band
                 # XXX we could avoid a copy here
                 if m.readonly:
-                    self.save_bytes(bytes(m))
+                    self.save_bytes(m.tobytes())
                 else:
-                    self.save_bytearray(bytearray(m))
+                    self.save_bytearray(m.tobytes())
             else:
                 # Write data out-of-band
                 self.write(NEXT_BUFFER)
