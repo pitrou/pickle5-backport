@@ -22,7 +22,7 @@ ext_modules = [
 
 setup(
     name="pickle5",
-    version="0.0.7",
+    version="0.0.8",
     author="Antoine Pitrou",
     author_email="antoine@python.org",
     description="Experimental backport of the pickle 5 protocol (PEP 574)",
