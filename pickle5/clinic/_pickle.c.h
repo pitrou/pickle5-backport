@@ -112,9 +112,9 @@ _pickle_Pickler___init__(PyObject *self, PyObject *args, PyObject *kwargs)
     Py_ssize_t nargs = PyTuple_GET_SIZE(args);
     Py_ssize_t noptargs = nargs + (kwargs ? PyDict_GET_SIZE(kwargs) : 0) - 1;
     PyObject *file;
-    PyObject *protocol = Py_None;
+    PyObject *protocol = NULL;
     int fix_imports = 1;
-    PyObject *buffer_callback = Py_None;
+    PyObject *buffer_callback = NULL;
 
     fastargs = _PyArg_UnpackKeywords(_PyTuple_CAST(args)->ob_item, nargs, kwargs, NULL, &_parser, 1, 4, 0, argsbuf);
     if (!fastargs) {
@@ -292,7 +292,7 @@ exit:
 
 PyDoc_STRVAR(_pickle_Unpickler___init____doc__,
 "Unpickler(file, *, fix_imports=True, encoding=\'ASCII\', errors=\'strict\',\n"
-"          buffers=())\n"
+"          buffers=None)\n"
 "--\n"
 "\n"
 "This takes a binary file for reading a pickle data stream.\n"
@@ -502,9 +502,9 @@ _pickle_dump(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject
     Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 2;
     PyObject *obj;
     PyObject *file;
-    PyObject *protocol = Py_None;
+    PyObject *protocol = NULL;
     int fix_imports = 1;
-    PyObject *buffer_callback = Py_None;
+    PyObject *buffer_callback = NULL;
 
     args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 2, 3, 0, argsbuf);
     if (!args) {
@@ -582,9 +582,9 @@ _pickle_dumps(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObjec
     PyObject *argsbuf[4];
     Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 1;
     PyObject *obj;
-    PyObject *protocol = Py_None;
+    PyObject *protocol = NULL;
     int fix_imports = 1;
-    PyObject *buffer_callback = Py_None;
+    PyObject *buffer_callback = NULL;
 
     args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 2, 0, argsbuf);
     if (!args) {
@@ -623,7 +623,7 @@ exit:
 
 PyDoc_STRVAR(_pickle_load__doc__,
 "load($module, /, file, *, fix_imports=True, encoding=\'ASCII\',\n"
-"     errors=\'strict\', buffers=())\n"
+"     errors=\'strict\', buffers=None)\n"
 "--\n"
 "\n"
 "Read and return an object from the pickle data stored in a file.\n"
@@ -735,7 +735,7 @@ exit:
 
 PyDoc_STRVAR(_pickle_loads__doc__,
 "loads($module, /, data, *, fix_imports=True, encoding=\'ASCII\',\n"
-"      errors=\'strict\', buffers=())\n"
+"      errors=\'strict\', buffers=None)\n"
 "--\n"
 "\n"
 "Read and return an object from the given pickle data.\n"
