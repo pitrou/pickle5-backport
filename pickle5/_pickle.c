@@ -1147,8 +1147,7 @@ static int
 _Pickler_SetProtocol(PicklerObject *self, PyObject *protocol, int fix_imports)
 {
     long proto;
-
-    if (protocol == Py_None) {
+    if (protocol == NULL || protocol == Py_None) {
         proto = DEFAULT_PROTOCOL;
     }
     else {

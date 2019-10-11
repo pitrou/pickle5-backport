@@ -35,7 +35,7 @@
      PyObject_HEAD
      /* The view exported by the original object */
 --- ../cpython-3.8.0rc1/Modules/_pickle.c	2019-10-01 05:58:26.000000000 -0700
-+++ pickle5/_pickle.c	2019-10-10 22:19:39.000000000 -0700
++++ pickle5/_pickle.c	2019-10-11 00:33:54.000000000 -0700
 @@ -1,11 +1,11 @@
 -/* pickle accelerator C extensor: _pickle module.
 - *
@@ -69,7 +69,17 @@
  
  /*************************************************************************
   A custom hashtable mapping void* to Python ints. This is used by the pickler
-@@ -1356,6 +1362,8 @@
+@@ -1141,8 +1147,7 @@
+ _Pickler_SetProtocol(PicklerObject *self, PyObject *protocol, int fix_imports)
+ {
+     long proto;
+-
+-    if (protocol == Py_None) {
++    if (protocol == NULL || protocol == Py_None) {
+         proto = DEFAULT_PROTOCOL;
+     }
+     else {
+@@ -1356,6 +1361,8 @@
  {
      assert(n != READ_WHOLE_LINE);
  
@@ -78,7 +88,7 @@
      /* Read from available buffer data, if any */
      Py_ssize_t in_buffer = self->input_len - self->next_read_idx;
      if (in_buffer > 0) {
-@@ -1371,11 +1379,22 @@
+@@ -1371,11 +1378,22 @@
      }
  
      /* Read from file */
@@ -105,7 +115,7 @@
      }
  
      /* Call readinto() into user buffer */
-@@ -1387,7 +1406,7 @@
+@@ -1387,7 +1405,7 @@
      if (read_size_obj == NULL) {
          return -1;
      }
@@ -114,7 +124,7 @@
      Py_DECREF(read_size_obj);
  
      if (read_size < 0) {
-@@ -1606,17 +1625,19 @@
+@@ -1606,17 +1624,19 @@
      _Py_IDENTIFIER(readinto);
      _Py_IDENTIFIER(readline);
  
@@ -138,7 +148,7 @@
          }
          Py_CLEAR(self->read);
          Py_CLEAR(self->readinto);
-@@ -4870,10 +4891,10 @@
+@@ -4870,10 +4890,10 @@
      sizeof(PicklerMemoProxyObject),             /*tp_basicsize*/
      0,
      (destructor)PicklerMemoProxy_dealloc,       /* tp_dealloc */
@@ -151,7 +161,7 @@
      0,                                          /* tp_repr */
      0,                                          /* tp_as_number */
      0,                                          /* tp_as_sequence */
-@@ -5031,10 +5052,10 @@
+@@ -5031,10 +5051,10 @@
      sizeof(PicklerObject),              /*tp_basicsize*/
      0,                                  /*tp_itemsize*/
      (destructor)Pickler_dealloc,        /*tp_dealloc*/
@@ -164,7 +174,7 @@
      0,                                  /*tp_repr*/
      0,                                  /*tp_as_number*/
      0,                                  /*tp_as_sequence*/
-@@ -7020,11 +7041,6 @@
+@@ -7020,11 +7040,6 @@
      PyObject *global;
      PyObject *module;
  
@@ -176,7 +186,7 @@
      /* Try to map the old names used in Python 2.x to the new ones used in
         Python 3.x.  We do this only with old pickle protocols and when the
         user has not disabled the feature. */
-@@ -7408,10 +7424,10 @@
+@@ -7408,10 +7423,10 @@
      sizeof(UnpicklerMemoProxyObject),           /*tp_basicsize*/
      0,
      (destructor)UnpicklerMemoProxy_dealloc,     /* tp_dealloc */
@@ -189,7 +199,7 @@
      0,                                          /* tp_repr */
      0,                                          /* tp_as_number */
      0,                                          /* tp_as_sequence */
-@@ -7579,10 +7595,10 @@
+@@ -7579,10 +7594,10 @@
      sizeof(UnpicklerObject),            /*tp_basicsize*/
      0,                                  /*tp_itemsize*/
      (destructor)Unpickler_dealloc,      /*tp_dealloc*/
@@ -202,7 +212,7 @@
      0,                                  /*tp_repr*/
      0,                                  /*tp_as_number*/
      0,                                  /*tp_as_sequence*/
-@@ -7790,7 +7806,7 @@
+@@ -7790,7 +7805,7 @@
  _pickle_load_impl(PyObject *module, PyObject *file, int fix_imports,
                    const char *encoding, const char *errors,
                    PyObject *buffers)
@@ -211,7 +221,7 @@
  {
      PyObject *result;
      UnpicklerObject *unpickler = _Unpickler_New();
-@@ -7877,11 +7893,25 @@
+@@ -7877,11 +7892,25 @@
      return NULL;
  }
  
@@ -237,7 +247,7 @@
      {NULL, NULL} /* sentinel */
  };
  
-@@ -7965,6 +7995,8 @@
+@@ -7965,6 +7994,8 @@
      Py_INCREF(&Unpickler_Type);
      if (PyModule_AddObject(m, "Unpickler", (PyObject *)&Unpickler_Type) < 0)
          return NULL;
@@ -320,7 +330,7 @@
  
  bytes_types = pickle.bytes_types
 --- ../cpython-3.8.0rc1/Lib/test/pickletester.py	2019-10-01 05:58:26.000000000 -0700
-+++ pickle5/test/pickletester.py	2019-10-10 22:39:58.000000000 -0700
++++ pickle5/test/pickletester.py	2019-10-10 23:13:54.000000000 -0700
 @@ -5,8 +5,6 @@
  import functools
  import os
@@ -354,8 +364,24 @@
              got = filelike.getvalue()
              self.assertEqual(expected, got)
  
+@@ -2328,7 +2326,6 @@
+         elif frameless_start is not None:
+             self.assertLess(pos - frameless_start, self.FRAME_SIZE_MIN)
+ 
+-    @support.skip_if_pgo_task
+     def test_framing_many_objects(self):
+         obj = list(range(10**5))
+         for proto in range(4, pickle.HIGHEST_PROTOCOL + 1):
+@@ -2418,7 +2415,6 @@
+                                 count_opcode(pickle.FRAME, pickled))
+                 self.assertEqual(obj, self.loads(some_frames_pickle))
+ 
+-    @support.skip_if_pgo_task
+     def test_framed_write_sizes_with_delayed_writer(self):
+         class ChunkAccumulator:
+             """Accumulate pickler output in a list of raw chunks."""
 --- ../cpython-3.8.0rc1/Lib/test/test_pickle.py	2019-10-01 05:58:26.000000000 -0700
-+++ pickle5/test/test_pickle.py	2019-10-10 22:34:45.000000000 -0700
++++ pickle5/test/test_pickle.py	2019-10-11 00:36:01.000000000 -0700
 @@ -1,7 +1,7 @@
  from _compat_pickle import (IMPORT_MAPPING, REVERSE_IMPORT_MAPPING,
                              NAME_MAPPING, REVERSE_NAME_MAPPING)
