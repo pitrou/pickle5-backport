@@ -3944,7 +3944,7 @@ save_reduce(PicklerObject *self, PyObject *args, PyObject *obj)
     const char newobj_ex_op = NEWOBJ_EX;
 
     size = PyTuple_Size(args);
-   if (size < 2 || size > 6) {
+    if (size < 2 || size > 6) {
         PyErr_SetString(st->PicklingError, "tuple returned by "
                         "__reduce__ must contain 2 through 6 elements");
         return -1;
@@ -4446,7 +4446,7 @@ save(PicklerObject *self, PyObject *obj, int pers_save)
     if (reduce_value == NULL)
         goto error;
 
-reduce:
+  reduce:
     if (PyUnicode_Check(reduce_value)) {
         status = save_global(self, obj, reduce_value);
         goto done;

@@ -4,13 +4,11 @@ Pickling tests themselves are in pickletester.py.
 """
 
 import gc
-import sys
+from pickle5 import PickleBuffer
 import weakref
 import unittest
 
 from test import support
-
-from pickle5 import PickleBuffer
 
 
 class B(bytes):

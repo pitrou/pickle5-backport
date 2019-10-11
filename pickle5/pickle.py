@@ -36,10 +36,18 @@ import io
 import codecs
 import _compat_pickle
 
-from ._pickle import PickleBuffer, _make_memoryview_readonly
+from ._pickle import _make_memoryview_readonly
 
 __all__ = ["PickleError", "PicklingError", "UnpicklingError", "Pickler",
-           "Unpickler", "dump", "dumps", "load", "loads", "PickleBuffer"]
+           "Unpickler", "dump", "dumps", "load", "loads"]
+
+try:
+    from ._pickle import PickleBuffer
+    __all__.append("PickleBuffer")
+    _HAVE_PICKLE_BUFFER = True
+except ImportError:
+    _HAVE_PICKLE_BUFFER = False
+
 
 # Shortcut for use in isinstance testing
 bytes_types = (bytes, bytearray)
@@ -423,9 +431,15 @@ class _Pickler:
         with Python 2.
 
         If *buffer_callback* is None (the default), buffer views are
-        serialized into *file* as part of the pickle stream.  It is
-        an error if *buffer_callback* is not None and *protocol* is
-        None or smaller than 5.
+        serialized into *file* as part of the pickle stream.
+
+        If *buffer_callback* is not None, then it can be called any number
+        of times with a buffer view.  If the callback returns a false value
+        (such as None), the given buffer is out-of-band; otherwise the
+        buffer is serialized in-band, i.e. inside the pickle stream.
+
+        It is an error if *buffer_callback* is not None and *protocol*
+        is None or smaller than 5.
         """
         if protocol is None:
             protocol = DEFAULT_PROTOCOL
@@ -533,38 +547,46 @@ class _Pickler:
             self.write(self.get(x[0]))
             return
 
-        # Check the type dispatch table
-        t = type(obj)
-        f = self.dispatch.get(t)
-        if f is not None:
-            f(self, obj) # Call unbound method with explicit self
-            return
-
-        # Check private dispatch table if any, or else copyreg.dispatch_table
-        reduce = getattr(self, 'dispatch_table', dispatch_table).get(t)
+        rv = NotImplemented
+        reduce = getattr(self, "reducer_override", None)
         if reduce is not None:
             rv = reduce(obj)
-        else:
-            # Check for a class with a custom metaclass; treat as regular class
-            try:
-                issc = issubclass(t, type)
-            except TypeError: # t is not a class (old Boost; see SF #502085)
-                issc = False
-            if issc:
-                self.save_global(obj)
+
+        if rv is NotImplemented:
+            # Check the type dispatch table
+            t = type(obj)
+            f = self.dispatch.get(t)
+            if f is not None:
+                f(self, obj)  # Call unbound method with explicit self
                 return
 
-            # Check for a __reduce_ex__ method, fall back to __reduce__
-            reduce = getattr(obj, "__reduce_ex__", None)
+            # Check private dispatch table if any, or else
+            # copyreg.dispatch_table
+            reduce = getattr(self, 'dispatch_table', dispatch_table).get(t)
             if reduce is not None:
-                rv = reduce(self.proto)
+                rv = reduce(obj)
             else:
-                reduce = getattr(obj, "__reduce__", None)
+                # Check for a class with a custom metaclass; treat as regular
+                # class
+                try:
+                    issc = issubclass(t, type)
+                except TypeError: # t is not a class (old Boost; see SF #502085)
+                    issc = False
+                if issc:
+                    self.save_global(obj)
+                    return
+
+                # Check for a __reduce_ex__ method, fall back to __reduce__
+                reduce = getattr(obj, "__reduce_ex__", None)
                 if reduce is not None:
-                    rv = reduce()
+                    rv = reduce(self.proto)
                 else:
-                    raise PicklingError("Can't pickle %r object: %r" %
-                                        (t.__name__, obj))
+                    reduce = getattr(obj, "__reduce__", None)
+                    if reduce is not None:
+                        rv = reduce()
+                    else:
+                        raise PicklingError("Can't pickle %r object: %r" %
+                                            (t.__name__, obj))
 
         # Check for string returned by reduce(), meaning "save as global"
         if isinstance(rv, str):
@@ -577,9 +599,9 @@ class _Pickler:
 
         # Assert that it returned an appropriately sized tuple
         l = len(rv)
-        if not (2 <= l <= 5):
+        if not (2 <= l <= 6):
             raise PicklingError("Tuple returned by %s must have "
-                                "two to five elements" % reduce)
+                                "two to six elements" % reduce)
 
         # Save the reduce() output and finally memoize the object
         self.save_reduce(obj=obj, *rv)
@@ -601,7 +623,7 @@ class _Pickler:
                     "persistent IDs in protocol 0 must be ASCII strings")
 
     def save_reduce(self, func, args, state=None, listitems=None,
-                    dictitems=None, obj=None):
+                    dictitems=None, state_setter=None, obj=None):
         # This API is called by some subclasses
 
         if not isinstance(args, tuple):
@@ -695,8 +717,25 @@ class _Pickler:
             self._batch_setitems(dictitems)
 
         if state is not None:
-            save(state)
-            write(BUILD)
+            if state_setter is None:
+                save(state)
+                write(BUILD)
+            else:
+                # If a state_setter is specified, call it instead of load_build
+                # to update obj's with its previous state.
+                # First, push state_setter and its tuple of expected arguments
+                # (obj, state) onto the stack.
+                save(state_setter)
+                save(obj)  # simple BINGET opcode as obj is already memoized.
+                save(state)
+                write(TUPLE2)
+                # Trigger a state_setter(obj, state) function call.
+                write(REDUCE)
+                # The purpose of state_setter is to carry-out an
+                # inplace modification of obj. We do not care about what the
+                # method might return, so its output is eventually removed from
+                # the stack.
+                write(POP)
 
     # Methods below this point are dispatched through the dispatch table
 
@@ -785,31 +824,32 @@ class _Pickler:
             self.write(BYTEARRAY8 + pack("<Q", n) + obj)
     dispatch[bytearray] = save_bytearray
 
-    def save_picklebuffer(self, obj):
-        if self.proto < 5:
-            raise PicklingError("PickleBuffer can only pickled with "
-                                "protocol >= 5")
-        with obj.raw() as m:
-            if not m.contiguous:
-                raise PicklingError("PickleBuffer can not be pickled when "
-                                    "pointing to a non-contiguous buffer")
-            in_band = True
-            if self._buffer_callback is not None:
-                in_band = bool(self._buffer_callback(obj))
-            if in_band:
-                # Write data in-band
-                # XXX we could avoid a copy here
-                if m.readonly:
-                    self.save_bytes(m.tobytes())
+    if _HAVE_PICKLE_BUFFER:
+        def save_picklebuffer(self, obj):
+            if self.proto < 5:
+                raise PicklingError("PickleBuffer can only pickled with "
+                                    "protocol >= 5")
+            with obj.raw() as m:
+                if not m.contiguous:
+                    raise PicklingError("PickleBuffer can not be pickled when "
+                                        "pointing to a non-contiguous buffer")
+                in_band = True
+                if self._buffer_callback is not None:
+                    in_band = bool(self._buffer_callback(obj))
+                if in_band:
+                    # Write data in-band
+                    # XXX The C implementation avoids a copy here
+                    if m.readonly:
+                        self.save_bytes(m.tobytes())
+                    else:
+                        self.save_bytearray(m.tobytes())
                 else:
-                    self.save_bytearray(m.tobytes())
-            else:
-                # Write data out-of-band
-                self.write(NEXT_BUFFER)
-                if m.readonly:
-                    self.write(READONLY_BUFFER)
+                    # Write data out-of-band
+                    self.write(NEXT_BUFFER)
+                    if m.readonly:
+                        self.write(READONLY_BUFFER)
 
-    dispatch[PickleBuffer] = save_picklebuffer
+        dispatch[PickleBuffer] = save_picklebuffer
 
     def save_str(self, obj):
         if self.bin:
@@ -825,7 +865,10 @@ class _Pickler:
                 self.write(BINUNICODE + pack("<I", n) + encoded)
         else:
             obj = obj.replace("\\", "\\u005c")
+            obj = obj.replace("\0", "\\u0000")
             obj = obj.replace("\n", "\\u000a")
+            obj = obj.replace("\r", "\\u000d")
+            obj = obj.replace("\x1a", "\\u001a")  # EOF on DOS
             self.write(UNICODE + obj.encode('raw-unicode-escape') +
                        b'\n')
         self.memoize(obj)

@@ -1,5 +1,5 @@
---- ../default/Include/picklebufobject.h	2019-04-24 21:34:21.441820415 +0200
-+++ pickle5/picklebufobject.h	2019-04-25 01:10:27.178803585 +0200
+--- ../cpython-3.8.0rc1/Include/picklebufobject.h	2019-10-01 05:58:26.000000000 -0700
++++ pickle5/picklebufobject.h	2019-10-10 21:27:34.000000000 -0700
 @@ -10,18 +10,18 @@
  
  #ifndef Py_LIMITED_API
@@ -23,8 +23,8 @@
  
  #endif /* !Py_LIMITED_API */
  
---- ../default/Objects/picklebufobject.c	2019-04-24 23:22:09.714808011 +0200
-+++ pickle5/picklebufobject.c	2019-04-25 01:10:27.178803585 +0200
+--- ../cpython-3.8.0rc1/Objects/picklebufobject.c	2019-10-01 05:58:26.000000000 -0700
++++ pickle5/picklebufobject.c	2019-10-10 21:29:15.000000000 -0700
 @@ -4,6 +4,8 @@
  #include "Python.h"
  #include <stddef.h>
@@ -34,8 +34,8 @@
  typedef struct {
      PyObject_HEAD
      /* The view exported by the original object */
---- ../default/Modules/_pickle.c	2019-04-24 23:56:10.787938850 +0200
-+++ pickle5/_pickle.c	2019-04-25 01:10:27.182803635 +0200
+--- ../cpython-3.8.0rc1/Modules/_pickle.c	2019-10-01 05:58:26.000000000 -0700
++++ pickle5/_pickle.c	2019-10-10 22:19:39.000000000 -0700
 @@ -1,11 +1,11 @@
 -/* pickle accelerator C extensor: _pickle module.
 - *
@@ -55,7 +55,7 @@
  #endif
  
  #include "Python.h"
-@@ -706,7 +706,13 @@
+@@ -709,7 +709,13 @@
  static PyTypeObject Pickler_Type;
  static PyTypeObject Unpickler_Type;
  
@@ -69,7 +69,149 @@
  
  /*************************************************************************
   A custom hashtable mapping void* to Python ints. This is used by the pickler
-@@ -7794,11 +7800,25 @@
+@@ -1356,6 +1362,8 @@
+ {
+     assert(n != READ_WHOLE_LINE);
+ 
++    /* XXX add tests from ogrisel's use case */
++
+     /* Read from available buffer data, if any */
+     Py_ssize_t in_buffer = self->input_len - self->next_read_idx;
+     if (in_buffer > 0) {
+@@ -1371,11 +1379,22 @@
+     }
+ 
+     /* Read from file */
+-    if (!self->readinto) {
+-        return bad_readline();
+-    }
+-    if (_Unpickler_SkipConsumed(self) < 0) {
++    if (_Unpickler_SkipConsumed(self) < 0)
+         return -1;
++
++    Py_ssize_t read_size;
++
++    if (self->readinto == NULL) {
++        /* Call read() and memcpy */
++        /* XXX do we want this fallback? pickle.py doesn't have it */
++        char *s;
++        read_size = _Unpickler_ReadImpl(self, &s, n);
++        if (read_size < 0) {
++            return -1;
++        }
++        assert(read_size == n);
++        memcpy(buf, s, n);
++        return n;
+     }
+ 
+     /* Call readinto() into user buffer */
+@@ -1387,7 +1406,7 @@
+     if (read_size_obj == NULL) {
+         return -1;
+     }
+-    Py_ssize_t read_size = PyLong_AsSsize_t(read_size_obj);
++    read_size = PyLong_AsSsize_t(read_size_obj);
+     Py_DECREF(read_size_obj);
+ 
+     if (read_size < 0) {
+@@ -1606,17 +1625,19 @@
+     _Py_IDENTIFIER(readinto);
+     _Py_IDENTIFIER(readline);
+ 
++    /* Both 'peek' and 'readline' are optional, for compatibility */
+     if (_PyObject_LookupAttrId(file, &PyId_peek, &self->peek) < 0) {
+         return -1;
+     }
++    if (_PyObject_LookupAttrId(file, &PyId_readinto, &self->readinto) < 0) {
++        return -1;
++    }
+     (void)_PyObject_LookupAttrId(file, &PyId_read, &self->read);
+-    (void)_PyObject_LookupAttrId(file, &PyId_readinto, &self->readinto);
+     (void)_PyObject_LookupAttrId(file, &PyId_readline, &self->readline);
+-    if (!self->readline || !self->readinto || !self->read) {
++    if (self->readline == NULL || self->read == NULL) {
+         if (!PyErr_Occurred()) {
+             PyErr_SetString(PyExc_TypeError,
+-                            "file must have 'read', 'readinto' and "
+-                            "'readline' attributes");
++                            "file must have 'read' and 'readline' attributes");
+         }
+         Py_CLEAR(self->read);
+         Py_CLEAR(self->readinto);
+@@ -4870,10 +4891,10 @@
+     sizeof(PicklerMemoProxyObject),             /*tp_basicsize*/
+     0,
+     (destructor)PicklerMemoProxy_dealloc,       /* tp_dealloc */
+-    0,                                          /* tp_vectorcall_offset */
++    0,                                          /* tp_print */
+     0,                                          /* tp_getattr */
+     0,                                          /* tp_setattr */
+-    0,                                          /* tp_as_async */
++    0,                                          /* tp_compare */
+     0,                                          /* tp_repr */
+     0,                                          /* tp_as_number */
+     0,                                          /* tp_as_sequence */
+@@ -5031,10 +5052,10 @@
+     sizeof(PicklerObject),              /*tp_basicsize*/
+     0,                                  /*tp_itemsize*/
+     (destructor)Pickler_dealloc,        /*tp_dealloc*/
+-    0,                                  /*tp_vectorcall_offset*/
++    0,                                  /*tp_print*/
+     0,                                  /*tp_getattr*/
+     0,                                  /*tp_setattr*/
+-    0,                                  /*tp_as_async*/
++    0,                                  /*tp_reserved*/
+     0,                                  /*tp_repr*/
+     0,                                  /*tp_as_number*/
+     0,                                  /*tp_as_sequence*/
+@@ -7020,11 +7041,6 @@
+     PyObject *global;
+     PyObject *module;
+ 
+-    if (PySys_Audit("pickle.find_class", "OO",
+-                    module_name, global_name) < 0) {
+-        return NULL;
+-    }
+-
+     /* Try to map the old names used in Python 2.x to the new ones used in
+        Python 3.x.  We do this only with old pickle protocols and when the
+        user has not disabled the feature. */
+@@ -7408,10 +7424,10 @@
+     sizeof(UnpicklerMemoProxyObject),           /*tp_basicsize*/
+     0,
+     (destructor)UnpicklerMemoProxy_dealloc,     /* tp_dealloc */
+-    0,                                          /* tp_vectorcall_offset */
++    0,                                          /* tp_print */
+     0,                                          /* tp_getattr */
+     0,                                          /* tp_setattr */
+-    0,                                          /* tp_as_async */
++    0,                                          /* tp_compare */
+     0,                                          /* tp_repr */
+     0,                                          /* tp_as_number */
+     0,                                          /* tp_as_sequence */
+@@ -7579,10 +7595,10 @@
+     sizeof(UnpicklerObject),            /*tp_basicsize*/
+     0,                                  /*tp_itemsize*/
+     (destructor)Unpickler_dealloc,      /*tp_dealloc*/
+-    0,                                  /*tp_vectorcall_offset*/
++    0,                                  /*tp_print*/
+     0,                                  /*tp_getattr*/
+     0,                                  /*tp_setattr*/
+-    0,                                  /*tp_as_async*/
++    0,                                  /*tp_reserved*/
+     0,                                  /*tp_repr*/
+     0,                                  /*tp_as_number*/
+     0,                                  /*tp_as_sequence*/
+@@ -7790,7 +7806,7 @@
+ _pickle_load_impl(PyObject *module, PyObject *file, int fix_imports,
+                   const char *encoding, const char *errors,
+                   PyObject *buffers)
+-/*[clinic end generated code: output=250452d141c23e76 input=46c7c31c92f4f371]*/
++/*[clinic end generated code: output=250452d141c23e76 input=29fae982fe778156]*/
+ {
+     PyObject *result;
+     UnpicklerObject *unpickler = _Unpickler_New();
+@@ -7877,11 +7893,25 @@
      return NULL;
  }
  
@@ -95,7 +237,7 @@
      {NULL, NULL} /* sentinel */
  };
  
-@@ -7882,6 +7902,8 @@
+@@ -7965,6 +7995,8 @@
      Py_INCREF(&Unpickler_Type);
      if (PyModule_AddObject(m, "Unpickler", (PyObject *)&Unpickler_Type) < 0)
          return NULL;
@@ -104,31 +246,37 @@
      Py_INCREF(&PyPickleBuffer_Type);
      if (PyModule_AddObject(m, "PickleBuffer",
                             (PyObject *)&PyPickleBuffer_Type) < 0)
---- ../default/Lib/pickle.py	2019-04-24 23:48:48.962087635 +0200
-+++ pickle5/pickle.py	2019-04-25 01:10:27.182803635 +0200
-@@ -36,7 +36,7 @@
+--- ../cpython-3.8.0rc1/Lib/pickle.py	2019-10-10 22:44:17.000000000 -0700
++++ pickle5/pickle.py	2019-10-10 22:53:55.000000000 -0700
+@@ -36,11 +36,13 @@
  import codecs
  import _compat_pickle
  
--from _pickle import PickleBuffer
-+from ._pickle import PickleBuffer, _make_memoryview_readonly
- 
++from ._pickle import _make_memoryview_readonly
++
  __all__ = ["PickleError", "PicklingError", "UnpicklingError", "Pickler",
-            "Unpickler", "dump", "dumps", "load", "loads", "PickleBuffer"]
-@@ -546,7 +546,11 @@
-             rv = reduce(obj)
-         else:
-             # Check for a class with a custom metaclass; treat as regular class
--            if issubclass(t, type):
-+            try:
-+                issc = issubclass(t, type)
-+            except TypeError: # t is not a class (old Boost; see SF #502085)
-+                issc = False
-+            if issc:
-                 self.save_global(obj)
-                 return
+            "Unpickler", "dump", "dumps", "load", "loads"]
  
-@@ -1364,7 +1368,9 @@
+ try:
+-    from _pickle import PickleBuffer
++    from ._pickle import PickleBuffer
+     __all__.append("PickleBuffer")
+     _HAVE_PICKLE_BUFFER = True
+ except ImportError:
+@@ -566,7 +568,11 @@
+             else:
+                 # Check for a class with a custom metaclass; treat as regular
+                 # class
+-                if issubclass(t, type):
++                try:
++                    issc = issubclass(t, type)
++                except TypeError: # t is not a class (old Boost; see SF #502085)
++                    issc = False
++                if issc:
+                     self.save_global(obj)
+                     return
+ 
+@@ -1405,7 +1411,9 @@
          buf = self.stack[-1]
          with memoryview(buf) as m:
              if not m.readonly:
@@ -139,7 +287,15 @@
      dispatch[READONLY_BUFFER[0]] = load_readonly_buffer
  
      def load_short_binstring(self):
-@@ -1717,7 +1723,7 @@
+@@ -1568,7 +1576,6 @@
+ 
+     def find_class(self, module, name):
+         # Subclasses may override this.
+-        sys.audit('pickle.find_class', module, name)
+         if self.proto < 3 and self.fix_imports:
+             if (module, name) in _compat_pickle.NAME_MAPPING:
+                 module, name = _compat_pickle.NAME_MAPPING[(module, name)]
+@@ -1759,7 +1766,7 @@
  
  # Use the faster _pickle if possible
  try:
@@ -148,8 +304,8 @@
          PickleError,
          PicklingError,
          UnpicklingError,
---- ../default/Lib/pickletools.py	2019-04-24 21:34:21.505821080 +0200
-+++ pickle5/pickletools.py	2019-04-25 01:10:27.182803635 +0200
+--- ../cpython-3.8.0rc1/Lib/pickletools.py	2019-10-01 05:58:26.000000000 -0700
++++ pickle5/pickletools.py	2019-10-10 22:43:59.000000000 -0700
 @@ -12,10 +12,11 @@
  
  import codecs
@@ -163,18 +319,18 @@
  __all__ = ['dis', 'genops', 'optimize']
  
  bytes_types = pickle.bytes_types
---- ../default/Lib/test/pickletester.py	2019-04-25 01:09:30.430092000 +0200
-+++ pickle5/test/pickletester.py	2019-04-25 01:10:27.182803635 +0200
-@@ -4,8 +4,6 @@
- import io
+--- ../cpython-3.8.0rc1/Lib/test/pickletester.py	2019-10-01 05:58:26.000000000 -0700
++++ pickle5/test/pickletester.py	2019-10-10 22:39:58.000000000 -0700
+@@ -5,8 +5,6 @@
  import functools
  import os
+ import math
 -import pickle
 -import pickletools
  import shutil
  import struct
  import sys
-@@ -31,7 +29,8 @@
+@@ -32,7 +30,8 @@
      _2G, _4G, bigmemtest, reap_threads, forget,
      )
  
@@ -184,7 +340,7 @@
  
  requires_32b = unittest.skipUnless(sys.maxsize < 2**32,
                                     "test is only meaningful on 32-bit builds")
-@@ -1461,12 +1460,11 @@
+@@ -1445,12 +1444,11 @@
      # of 1.
      def dont_test_disassembly(self):
          from io import StringIO
@@ -198,20 +354,22 @@
              got = filelike.getvalue()
              self.assertEqual(expected, got)
  
---- ../default/Lib/test/test_pickle.py	2019-04-24 23:20:31.049670452 +0200
-+++ pickle5/test/test_pickle.py	2019-04-25 01:10:27.182803635 +0200
-@@ -1,7 +1,6 @@
+--- ../cpython-3.8.0rc1/Lib/test/test_pickle.py	2019-10-01 05:58:26.000000000 -0700
++++ pickle5/test/test_pickle.py	2019-10-10 22:34:45.000000000 -0700
+@@ -1,7 +1,7 @@
  from _compat_pickle import (IMPORT_MAPPING, REVERSE_IMPORT_MAPPING,
                              NAME_MAPPING, REVERSE_NAME_MAPPING)
  import builtins
 -import pickle
++import pickle5 as pickle
  import io
  import collections
  import struct
-@@ -11,17 +10,18 @@
+@@ -11,19 +11,19 @@
  import unittest
  from test import support
  
+-from test.pickletester import AbstractHookTests
 -from test.pickletester import AbstractUnpickleTests
 -from test.pickletester import AbstractPickleTests
 -from test.pickletester import AbstractPickleModuleTests
@@ -219,7 +377,9 @@
 -from test.pickletester import AbstractIdentityPersistentPicklerTests
 -from test.pickletester import AbstractPicklerUnpicklerObjectTests
 -from test.pickletester import AbstractDispatchTableTests
+-from test.pickletester import AbstractCustomPicklerClass
 -from test.pickletester import BigmemPickleTests
++from .pickletester import AbstractHookTests
 +from .pickletester import AbstractUnpickleTests
 +from .pickletester import AbstractPickleTests
 +from .pickletester import AbstractPickleModuleTests
@@ -227,16 +387,16 @@
 +from .pickletester import AbstractIdentityPersistentPicklerTests
 +from .pickletester import AbstractPicklerUnpicklerObjectTests
 +from .pickletester import AbstractDispatchTableTests
++from .pickletester import AbstractCustomPicklerClass
 +from .pickletester import BigmemPickleTests
  
-+import pickle5 as pickle
  try:
 -    import _pickle
 +    from pickle5 import _pickle
      has_c_implementation = True
  except ImportError:
      has_c_implementation = False
-@@ -205,7 +205,7 @@
+@@ -212,7 +212,7 @@
  
  if has_c_implementation:
      class CPickleTests(AbstractPickleModuleTests):
@@ -245,31 +405,14 @@
  
      class CUnpicklerTests(PyUnpicklerTests):
          unpickler = _pickle.Unpickler
-@@ -508,7 +508,8 @@
-                       PyPicklerUnpicklerObjectTests,
-                       CPicklerUnpicklerObjectTests,
-                       CDispatchTableTests, CChainDispatchTableTests,
--                      InMemoryPickleTests, SizeofTests])
-+                      InMemoryPickleTests, SizeofTests
-+                      ])
-     support.run_unittest(*tests)
-     support.run_doctest(pickle)
- 
---- ../default/Lib/test/test_picklebuffer.py	2019-04-25 01:11:35.679661336 +0200
-+++ pickle5/test/test_picklebuffer.py	2019-04-25 01:11:42.103741713 +0200
-@@ -4,13 +4,14 @@
+--- ../cpython-3.8.0rc1/Lib/test/test_picklebuffer.py	2019-10-01 05:58:26.000000000 -0700
++++ pickle5/test/test_picklebuffer.py	2019-10-10 22:31:20.000000000 -0700
+@@ -4,7 +4,7 @@
  """
  
  import gc
 -from pickle import PickleBuffer
- import sys
++from pickle5 import PickleBuffer
  import weakref
  import unittest
  
- from test import support
- 
-+from pickle5 import PickleBuffer
-+
- 
- class B(bytes):
-     pass
