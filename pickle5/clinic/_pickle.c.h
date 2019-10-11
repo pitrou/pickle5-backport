@@ -85,9 +85,16 @@ PyDoc_STRVAR(_pickle_Pickler___init____doc__,
 "to map the new Python 3 names to the old module names used in Python\n"
 "2, so that the pickle data stream is readable with Python 2.\n"
 "\n"
-"If *buffer_callback* is None (the default), buffer views are serialized\n"
-"into *file* as part of the pickle stream.  It is an error if\n"
-"*buffer_callback* is not None and *protocol* is None or smaller than 5.");
+"If *buffer_callback* is None (the default), buffer views are\n"
+"serialized into *file* as part of the pickle stream.\n"
+"\n"
+"If *buffer_callback* is not None, then it can be called any number\n"
+"of times with a buffer view.  If the callback returns a false value\n"
+"(such as None), the given buffer is out-of-band; otherwise the\n"
+"buffer is serialized in-band, i.e. inside the pickle stream.\n"
+"\n"
+"It is an error if *buffer_callback* is not None and *protocol*\n"
+"is None or smaller than 5.");
 
 static int
 _pickle_Pickler___init___impl(PicklerObject *self, PyObject *file,
@@ -105,9 +112,9 @@ _pickle_Pickler___init__(PyObject *self, PyObject *args, PyObject *kwargs)
     Py_ssize_t nargs = PyTuple_GET_SIZE(args);
     Py_ssize_t noptargs = nargs + (kwargs ? PyDict_GET_SIZE(kwargs) : 0) - 1;
     PyObject *file;
-    PyObject *protocol = NULL;
+    PyObject *protocol = Py_None;
     int fix_imports = 1;
-    PyObject *buffer_callback = NULL;
+    PyObject *buffer_callback = Py_None;
 
     fastargs = _PyArg_UnpackKeywords(_PyTuple_CAST(args)->ob_item, nargs, kwargs, NULL, &_parser, 1, 4, 0, argsbuf);
     if (!fastargs) {
@@ -285,7 +292,7 @@ exit:
 
 PyDoc_STRVAR(_pickle_Unpickler___init____doc__,
 "Unpickler(file, *, fix_imports=True, encoding=\'ASCII\', errors=\'strict\',\n"
-"          buffers=None)\n"
+"          buffers=())\n"
 "--\n"
 "\n"
 "This takes a binary file for reading a pickle data stream.\n"
@@ -495,9 +502,9 @@ _pickle_dump(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject
     Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 2;
     PyObject *obj;
     PyObject *file;
-    PyObject *protocol = NULL;
+    PyObject *protocol = Py_None;
     int fix_imports = 1;
-    PyObject *buffer_callback = NULL;
+    PyObject *buffer_callback = Py_None;
 
     args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 2, 3, 0, argsbuf);
     if (!args) {
@@ -575,9 +582,9 @@ _pickle_dumps(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObjec
     PyObject *argsbuf[4];
     Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 1;
     PyObject *obj;
-    PyObject *protocol = NULL;
+    PyObject *protocol = Py_None;
     int fix_imports = 1;
-    PyObject *buffer_callback = NULL;
+    PyObject *buffer_callback = Py_None;
 
     args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 2, 0, argsbuf);
     if (!args) {
@@ -616,7 +623,7 @@ exit:
 
 PyDoc_STRVAR(_pickle_load__doc__,
 "load($module, /, file, *, fix_imports=True, encoding=\'ASCII\',\n"
-"     errors=\'strict\', buffers=None)\n"
+"     errors=\'strict\', buffers=())\n"
 "--\n"
 "\n"
 "Read and return an object from the pickle data stored in a file.\n"
@@ -728,7 +735,7 @@ exit:
 
 PyDoc_STRVAR(_pickle_loads__doc__,
 "loads($module, /, data, *, fix_imports=True, encoding=\'ASCII\',\n"
-"      errors=\'strict\', buffers=None)\n"
+"      errors=\'strict\', buffers=())\n"
 "--\n"
 "\n"
 "Read and return an object from the given pickle data.\n"
