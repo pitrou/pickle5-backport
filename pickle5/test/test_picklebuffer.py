@@ -4,7 +4,6 @@ Pickling tests themselves are in pickletester.py.
 """
 
 import gc
-import sys
 import weakref
 import unittest
 
