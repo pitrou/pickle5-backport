@@ -1,9 +1,10 @@
-========================================================================
-`pickle5` -- An experimental backport of the pickle 5 protocol (PEP 574)
-========================================================================
+==========================================================
+`pickle5` -- A backport of the pickle 5 protocol (PEP 574)
+==========================================================
 
-This package backports the features and APIs added in
-`PEP 574 <https://www.python.org/dev/peps/pep-0574/>`_.  It should
+This package backports all features and APIs added in the ``pickle`` module
+in Python 3.8.0, including the
+`PEP 574 <https://www.python.org/dev/peps/pep-0574/>`_ additions.  It should
 work with Python 3.6 and 3.7.
 
 Basic usage is similar to the ``pickle`` module, except that the module
