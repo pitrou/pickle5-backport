@@ -3,7 +3,7 @@
 # Port the newest contents of the CPython "pickle5" branch and apply them
 # to this project tree.
 
-CPYTHON=../default
+CPYTHON=../38
 
 cp -f $CPYTHON/Include/picklebufobject.h pickle5/
 cp -f $CPYTHON/Objects/picklebufobject.c pickle5/

@@ -4,7 +4,10 @@
 
 #if PY_VERSION_HEX < 0x03080000
 
-/* Convenience function to get a builtin from its name */
+/* Convenience function to get a builtin from its name.
+ * Note this was backported at some point to 3.6.x and 3.7.x,
+ * so it's possible to get a compilation warning.
+ */
 PyObject *
 _PyEval_GetBuiltinId(_Py_Identifier *name)
 {
@@ -89,30 +92,6 @@ _PyObject_LookupAttrId(PyObject *v, _Py_Identifier *name, PyObject **result)
         return -1;
     }
     return  _PyObject_LookupAttr(v, oname, result);
-}
-
-static PyObject *
-PyImport_GetModule(PyObject *name)
-{
-    PyObject *m;
-    PyObject *modules = PyImport_GetModuleDict();
-    if (modules == NULL) {
-        PyErr_SetString(PyExc_RuntimeError, "unable to get sys.modules");
-        return NULL;
-    }
-    Py_INCREF(modules);
-    if (PyDict_CheckExact(modules)) {
-        m = PyDict_GetItemWithError(modules, name);  /* borrowed */
-        Py_XINCREF(m);
-    }
-    else {
-        m = PyObject_GetItem(modules, name);
-        if (m == NULL && PyErr_ExceptionMatches(PyExc_KeyError)) {
-            PyErr_Clear();
-        }
-    }
-    Py_DECREF(modules);
-    return m;
 }
 
 #endif

@@ -10,6 +10,7 @@ import weakref
 import unittest
 from test import support
 
+from .pickletester import AbstractHookTests
 from .pickletester import AbstractUnpickleTests
 from .pickletester import AbstractPickleTests
 from .pickletester import AbstractPickleModuleTests
@@ -17,6 +18,7 @@ from .pickletester import AbstractPersistentPicklerTests
 from .pickletester import AbstractIdentityPersistentPicklerTests
 from .pickletester import AbstractPicklerUnpicklerObjectTests
 from .pickletester import AbstractDispatchTableTests
+from .pickletester import AbstractCustomPicklerClass
 from .pickletester import BigmemPickleTests
 
 import pickle5 as pickle
@@ -25,8 +27,6 @@ try:
     has_c_implementation = True
 except ImportError:
     has_c_implementation = False
-
-#has_c_implementation = False
 
 
 class PyPickleTests(AbstractPickleModuleTests):
@@ -203,6 +203,13 @@ class PyChainDispatchTableTests(AbstractDispatchTableTests):
         return collections.ChainMap({}, pickle.dispatch_table)
 
 
+class PyPicklerHookTests(AbstractHookTests):
+    class CustomPyPicklerClass(pickle._Pickler,
+                               AbstractCustomPicklerClass):
+        pass
+    pickler_class = CustomPyPicklerClass
+
+
 if has_c_implementation:
     class CPickleTests(AbstractPickleModuleTests):
         from pickle5._pickle import dump, dumps, load, loads, Pickler, Unpickler
@@ -255,12 +262,17 @@ if has_c_implementation:
         def get_dispatch_table(self):
             return collections.ChainMap({}, pickle.dispatch_table)
 
+    class CPicklerHookTests(AbstractHookTests):
+        class CustomCPicklerClass(_pickle.Pickler, AbstractCustomPicklerClass):
+            pass
+        pickler_class = CustomCPicklerClass
+
     @support.cpython_only
     class SizeofTests(unittest.TestCase):
         check_sizeof = support.check_sizeof
 
         def test_pickler(self):
-            basesize = support.calcobjsize('6P2n3i2n3i2P')
+            basesize = support.calcobjsize('7P2n3i2n3i2P')
             p = _pickle.Pickler(io.BytesIO())
             self.assertEqual(object.__sizeof__(p), basesize)
             MT_size = struct.calcsize('3nP0n')
@@ -500,7 +512,7 @@ def test_main():
     tests = [PyPickleTests, PyUnpicklerTests, PyPicklerTests,
              PyPersPicklerTests, PyIdPersPicklerTests,
              PyDispatchTableTests, PyChainDispatchTableTests,
-             CompatPickleTests]
+             CompatPickleTests, PyPicklerHookTests]
     if has_c_implementation:
         tests.extend([CPickleTests, CUnpicklerTests, CPicklerTests,
                       CPersPicklerTests, CIdPersPicklerTests,
@@ -508,8 +520,8 @@ def test_main():
                       PyPicklerUnpicklerObjectTests,
                       CPicklerUnpicklerObjectTests,
                       CDispatchTableTests, CChainDispatchTableTests,
-                      InMemoryPickleTests, SizeofTests
-                      ])
+                      CPicklerHookTests,
+                      InMemoryPickleTests, SizeofTests])
     support.run_unittest(*tests)
     support.run_doctest(pickle)
 

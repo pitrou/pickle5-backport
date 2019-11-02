@@ -6,7 +6,7 @@
 # DIFF=colordiff
 DIFF="diff -u"
 
-CPYTHON=../default
+CPYTHON=../38
 
 $DIFF $CPYTHON/Include/picklebufobject.h pickle5/
 $DIFF $CPYTHON/Objects/picklebufobject.c pickle5/
