@@ -13,3 +13,5 @@ then:
 * Same for 3.7
 
 * Currently, we are syncing with cpython branch=3.8, revision=460eac20a625d5dcef409dadc120a26d272a8013
+
+* For python3.5, we skipped tests for __getnewargs_ex__ when protocol < 4, because it is not supported. We also use custom serializers for numpy array to test pickle protocol 5.
