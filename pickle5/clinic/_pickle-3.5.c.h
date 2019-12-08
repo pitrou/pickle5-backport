@@ -565,7 +565,6 @@ _pickle_loads(PyObject *module, PyObject *args, PyObject *kwargs)
 {
     PyObject *return_value = NULL;
     static char *_keywords[] = {"data", "fix_imports", "encoding", "errors", "buffers", NULL};
-    static _PyArg_Parser _parser = {"O|$pssO:loads", _keywords, 0};
     PyObject *data;
     int fix_imports = 1;
     const char *encoding = "ASCII";
@@ -580,4 +579,4 @@ _pickle_loads(PyObject *module, PyObject *args, PyObject *kwargs)
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=6e2b89d75a060f77 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=58889445cd3e3365 input=a9049054013a1b77]*/
