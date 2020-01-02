@@ -12,3 +12,4 @@ then:
 
 * Same for 3.7
 
+For python3.5, we must use protocol 4 or greater to copy this object; since __getnewargs_ex__ returned keyword arguments.

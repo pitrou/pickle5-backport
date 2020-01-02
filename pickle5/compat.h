@@ -419,4 +419,4 @@ _PyBytesWriter_WriteBytes(_PyBytesWriter *writer, void *ptr,
 }
 #endif   /* Py_LIMITED_API */
 
-#endif
+#endif   // PY_VERSION_HEX < 0x03060000
