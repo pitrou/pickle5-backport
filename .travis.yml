@@ -32,6 +32,7 @@ matrix:
 
 install:
   - python -m venv $PY_VENV
+  - sudo chown -Rv $USER:$GROUP /home/travis/.cache/pip/wheels  # https://travis-ci.community/t/permission-issue-while-building-wheels-for-various-python-packages/7822/6
   - $PYTHON -m pip install -U pip wheel setuptools numpy
   - $PYTHON -m pip install -r requirements.txt
 
