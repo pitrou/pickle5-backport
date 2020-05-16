@@ -98,7 +98,6 @@ _PyObject_LookupAttrId(PyObject *v, _Py_Identifier *name, PyObject **result)
 
 // CPython 3.6 API backports
 
-
 #if PY_VERSION_HEX < 0x03060000
 
 #include <stddef.h> /* For offsetof */

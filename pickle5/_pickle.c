@@ -709,7 +709,6 @@ static int save_reduce(PicklerObject *, PyObject *, PyObject *);
 static PyTypeObject Pickler_Type;
 static PyTypeObject Unpickler_Type;
 
-
 #if PY_VERSION_HEX < 0x03060000
 #include "clinic/_pickle-3.5.c.h"
 #elif PY_VERSION_HEX < 0x03070000
