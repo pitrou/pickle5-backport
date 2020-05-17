@@ -22,6 +22,8 @@ except ImportError:
 try:
     import numpy as np
 
+    # This function is used for numpy serialization with pickle5 in Python3.5.
+    # It can be removed once numpy enables Pickle Protocol 5 for Python3.5.
     def _numpy_ndarray_reduce(array):
         # This function is implemented according to 'array_reduce_ex_picklebuffer'
         # in numpy C backend. This is a workaround for python3.5 pickling support.
