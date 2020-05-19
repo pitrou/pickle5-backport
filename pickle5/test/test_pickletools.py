@@ -1,7 +1,7 @@
 import pickle
 import pickletools
 from test import support
-from test.pickletester import AbstractPickleTests
+from .pickletester import AbstractPickleTests
 import unittest
 
 class OptimizedPickleTests(AbstractPickleTests):
