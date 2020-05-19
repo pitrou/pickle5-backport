@@ -1,4 +1,4 @@
-import pickle
+import pickle5 as pickle
 import pickletools
 from test import support
 from .pickletester import AbstractPickleTests
