@@ -1,5 +1,5 @@
---- ../38/Include/picklebufobject.h	2019-11-02 16:20:20.358405065 +0100
-+++ pickle5/picklebufobject.h	2019-11-02 16:30:40.749731365 +0100
+--- ../38/Include/picklebufobject.h	2020-05-10 16:01:50.000000000 -0700
++++ pickle5/picklebufobject.h	2020-05-18 16:44:04.000000000 -0700
 @@ -10,18 +10,18 @@
  
  #ifndef Py_LIMITED_API
@@ -23,8 +23,8 @@
  
  #endif /* !Py_LIMITED_API */
  
---- ../38/Objects/picklebufobject.c	2019-11-02 16:20:20.834410181 +0100
-+++ pickle5/picklebufobject.c	2019-11-02 16:30:40.749731365 +0100
+--- ../38/Objects/picklebufobject.c	2020-05-10 16:01:50.000000000 -0700
++++ pickle5/picklebufobject.c	2020-05-18 16:46:09.000000000 -0700
 @@ -4,6 +4,8 @@
  #include "Python.h"
  #include <stddef.h>
@@ -34,8 +34,8 @@
  typedef struct {
      PyObject_HEAD
      /* The view exported by the original object */
---- ../38/Modules/_pickle.c	2019-11-02 16:20:20.754409320 +0100
-+++ pickle5/_pickle.c	2019-11-02 16:46:35.809907792 +0100
+--- ../38/Modules/_pickle.c	2020-05-18 14:58:20.000000000 -0700
++++ pickle5/_pickle.c	2020-05-18 17:05:11.000000000 -0700
 @@ -1,11 +1,11 @@
 -/* pickle accelerator C extensor: _pickle module.
 - *
@@ -69,7 +69,7 @@
  
  /*************************************************************************
   A custom hashtable mapping void* to Python ints. This is used by the pickler
-@@ -7020,11 +7026,6 @@
+@@ -7066,11 +7072,6 @@
      PyObject *global;
      PyObject *module;
  
@@ -81,7 +81,7 @@
      /* Try to map the old names used in Python 2.x to the new ones used in
         Python 3.x.  We do this only with old pickle protocols and when the
         user has not disabled the feature. */
-@@ -7877,11 +7878,25 @@
+@@ -7923,11 +7924,25 @@
      return NULL;
  }
  
@@ -107,7 +107,7 @@
      {NULL, NULL} /* sentinel */
  };
  
-@@ -7965,6 +7980,8 @@
+@@ -8012,6 +8027,8 @@
      Py_INCREF(&Unpickler_Type);
      if (PyModule_AddObject(m, "Unpickler", (PyObject *)&Unpickler_Type) < 0)
          return NULL;
@@ -116,8 +116,8 @@
      Py_INCREF(&PyPickleBuffer_Type);
      if (PyModule_AddObject(m, "PickleBuffer",
                             (PyObject *)&PyPickleBuffer_Type) < 0)
---- ../38/Lib/pickle.py	2019-11-02 16:20:20.482406398 +0100
-+++ pickle5/pickle.py	2019-11-02 16:46:54.906114687 +0100
+--- ../38/Lib/pickle.py	2020-05-18 14:58:20.000000000 -0700
++++ pickle5/pickle.py	2020-05-18 16:41:15.000000000 -0700
 @@ -40,7 +40,7 @@
             "Unpickler", "dump", "dumps", "load", "loads"]
  
@@ -155,8 +155,8 @@
          PickleError,
          PicklingError,
          UnpicklingError,
---- ../38/Lib/pickletools.py	2019-11-02 16:20:20.486406441 +0100
-+++ pickle5/pickletools.py	2019-11-02 16:30:40.753731415 +0100
+--- ../38/Lib/pickletools.py	2020-05-10 16:01:50.000000000 -0700
++++ pickle5/pickletools.py	2020-05-18 16:41:34.000000000 -0700
 @@ -12,10 +12,11 @@
  
  import codecs
@@ -170,8 +170,8 @@
  __all__ = ['dis', 'genops', 'optimize']
  
  bytes_types = pickle.bytes_types
---- ../38/Lib/test/pickletester.py	2019-11-02 16:20:20.538407000 +0100
-+++ pickle5/test/pickletester.py	2019-11-02 16:42:03.558511125 +0100
+--- ../38/Lib/test/pickletester.py	2020-05-18 14:58:20.000000000 -0700
++++ pickle5/test/pickletester.py	2020-05-18 16:37:04.000000000 -0700
 @@ -5,8 +5,6 @@
  import functools
  import os
@@ -191,7 +191,7 @@
  
  requires_32b = unittest.skipUnless(sys.maxsize < 2**32,
                                     "test is only meaningful on 32-bit builds")
-@@ -1445,12 +1444,11 @@
+@@ -1457,12 +1456,11 @@
      # of 1.
      def dont_test_disassembly(self):
          from io import StringIO
@@ -205,7 +205,7 @@
              got = filelike.getvalue()
              self.assertEqual(expected, got)
  
-@@ -2328,7 +2326,6 @@
+@@ -2340,7 +2338,6 @@
          elif frameless_start is not None:
              self.assertLess(pos - frameless_start, self.FRAME_SIZE_MIN)
  
@@ -213,7 +213,7 @@
      def test_framing_many_objects(self):
          obj = list(range(10**5))
          for proto in range(4, pickle.HIGHEST_PROTOCOL + 1):
-@@ -2418,7 +2415,6 @@
+@@ -2430,7 +2427,6 @@
                                  count_opcode(pickle.FRAME, pickled))
                  self.assertEqual(obj, self.loads(some_frames_pickle))
  
@@ -221,8 +221,8 @@
      def test_framed_write_sizes_with_delayed_writer(self):
          class ChunkAccumulator:
              """Accumulate pickler output in a list of raw chunks."""
---- ../38/Lib/test/test_pickle.py	2019-11-02 16:20:20.602407687 +0100
-+++ pickle5/test/test_pickle.py	2019-11-02 16:37:43.523126691 +0100
+--- ../38/Lib/test/test_pickle.py	2020-05-10 16:01:50.000000000 -0700
++++ pickle5/test/test_pickle.py	2020-05-18 16:37:57.000000000 -0700
 @@ -1,7 +1,6 @@
  from _compat_pickle import (IMPORT_MAPPING, REVERSE_IMPORT_MAPPING,
                              NAME_MAPPING, REVERSE_NAME_MAPPING)
@@ -272,8 +272,8 @@
  
      class CUnpicklerTests(PyUnpicklerTests):
          unpickler = _pickle.Unpickler
---- ../38/Lib/test/test_picklebuffer.py	2019-11-02 16:20:20.602407687 +0100
-+++ pickle5/test/test_picklebuffer.py	2019-11-02 16:38:22.283628888 +0100
+--- ../38/Lib/test/test_picklebuffer.py	2020-05-10 16:01:50.000000000 -0700
++++ pickle5/test/test_picklebuffer.py	2020-05-18 16:31:01.000000000 -0700
 @@ -4,12 +4,13 @@
  """
  
