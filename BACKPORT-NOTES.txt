@@ -12,3 +12,4 @@ then:
 
 * Same for 3.7
 
+* Currently, we are syncing with cpython branch=3.8, revision=460eac20a625d5dcef409dadc120a26d272a8013
