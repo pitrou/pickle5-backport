@@ -1,34 +1,43 @@
-language: python
-
+os: linux
 dist: xenial
-sudo: true
+language: python
 
 notifications:
   email: false
 
 env:
   global:
+    - INSTALL_NUMPY=1
     - PY_VENV=$TRAVIS_BUILD_DIR/venv
     - PYTHON=$PY_VENV/bin/python
 
-matrix:
+jobs:
   include:
   - python: "3.6"
     dist: trusty
     arch: amd64
   - python: "3.6"
     arch: amd64
-  - python: "3.6"
-    arch: arm64
   - python: "3.7"
     arch: amd64
+  - python: "3.6"
+    dist: bionic
+    arch: arm64
   - python: "3.7"
+    dist: bionic
     arch: arm64
 
 install:
   - python -m venv $PY_VENV
-  - $PYTHON -m pip install -U pip wheel setuptools numpy
-  - $PYTHON -m pip install -r requirements.txt
+  - export PIP="$PYTHON -m pip"
+  # For some reason, pip caching fails on ARM64
+  - export PIP_INSTALL="$PIP install --no-cache-dir"
+  - $PIP_INSTALL -U pip wheel setuptools
+  - |
+    if [ "${INSTALL_NUMPY}" = "1" ]; then
+      $PIP_INSTALL -U numpy
+    fi
+  - $PIP_INSTALL -r requirements.txt
 
 before_script:
   - $PYTHON setup.py install
