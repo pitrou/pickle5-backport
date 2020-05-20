@@ -35,7 +35,7 @@
      PyObject_HEAD
      /* The view exported by the original object */
 --- ../38/Modules/_pickle.c	2020-05-18 14:58:20.000000000 -0700
-+++ pickle5/_pickle.c	2020-05-18 17:05:11.000000000 -0700
++++ pickle5/_pickle.c	2020-05-19 22:02:26.000000000 -0700
 @@ -1,11 +1,11 @@
 -/* pickle accelerator C extensor: _pickle module.
 - *
@@ -55,11 +55,13 @@
  #endif
  
  #include "Python.h"
-@@ -709,7 +709,13 @@
+@@ -709,7 +709,15 @@
  static PyTypeObject Pickler_Type;
  static PyTypeObject Unpickler_Type;
  
-+#if PY_VERSION_HEX < 0x03070000
++#if PY_VERSION_HEX < 0x03060000
++#include "clinic/_pickle-3.5.c.h"
++#elif PY_VERSION_HEX < 0x03070000
 +#include "clinic/_pickle-3.6.c.h"
 +#elif PY_VERSION_HEX < 0x03080000
 +#include "clinic/_pickle-3.7.c.h"
@@ -69,7 +71,7 @@
  
  /*************************************************************************
   A custom hashtable mapping void* to Python ints. This is used by the pickler
-@@ -7066,11 +7072,6 @@
+@@ -7066,11 +7074,6 @@
      PyObject *global;
      PyObject *module;
  
@@ -81,7 +83,7 @@
      /* Try to map the old names used in Python 2.x to the new ones used in
         Python 3.x.  We do this only with old pickle protocols and when the
         user has not disabled the feature. */
-@@ -7923,11 +7924,25 @@
+@@ -7923,11 +7926,25 @@
      return NULL;
  }
  
@@ -107,7 +109,7 @@
      {NULL, NULL} /* sentinel */
  };
  
-@@ -8012,6 +8027,8 @@
+@@ -8012,6 +8029,8 @@
      Py_INCREF(&Unpickler_Type);
      if (PyModule_AddObject(m, "Unpickler", (PyObject *)&Unpickler_Type) < 0)
          return NULL;
@@ -117,7 +119,7 @@
      if (PyModule_AddObject(m, "PickleBuffer",
                             (PyObject *)&PyPickleBuffer_Type) < 0)
 --- ../38/Lib/pickle.py	2020-05-18 14:58:20.000000000 -0700
-+++ pickle5/pickle.py	2020-05-18 16:41:15.000000000 -0700
++++ pickle5/pickle.py	2020-05-19 21:57:30.000000000 -0700
 @@ -40,7 +40,7 @@
             "Unpickler", "dump", "dumps", "load", "loads"]
  
@@ -171,7 +173,7 @@
  
  bytes_types = pickle.bytes_types
 --- ../38/Lib/test/pickletester.py	2020-05-18 14:58:20.000000000 -0700
-+++ pickle5/test/pickletester.py	2020-05-18 16:37:04.000000000 -0700
++++ pickle5/test/pickletester.py	2020-05-19 22:02:26.000000000 -0700
 @@ -5,8 +5,6 @@
  import functools
  import os
@@ -181,7 +183,46 @@
  import shutil
  import struct
  import sys
-@@ -32,7 +30,8 @@
+@@ -23,6 +21,38 @@
+ 
+ try:
+     import numpy as np
++
++    # This function is used for numpy serialization with pickle5 in Python3.5.
++    # It can be removed once numpy enables Pickle Protocol 5 for Python3.5.
++    def _numpy_ndarray_reduce(array):
++        # This function is implemented according to 'array_reduce_ex_picklebuffer'
++        # in numpy C backend. This is a workaround for python3.5 pickling support.
++        if ((not array.flags.c_contiguous and not array.flags.f_contiguous) or
++                (issubclass(type(array), np.ndarray) and type(array) is not np.ndarray) or
++                array.dtype == "O" or array.itemsize == 0):
++            return array.__reduce__()
++
++        from pickle5 import PickleBuffer as picklebuf_class
++
++        # if the array if Fortran-contiguous and not C-contiguous,
++        # the PickleBuffer instance will hold a view on the transpose
++        # of the initial array, that is C-contiguous.
++        if not array.flags.c_contiguous and array.flags.f_contiguous:
++            order = "F"
++            picklebuf_args = array.transpose()
++        else:
++            order = "C"
++            picklebuf_args = array
++        try:
++            buffer = picklebuf_class(picklebuf_args)
++        except Exception:
++            # Some arrays may refuse to export a buffer, in which case
++            # just fall back on regular __reduce_ex__ implementation
++            # (gh-12745).
++            return array.__reduce__()
++        from numpy.core.numeric import _frombuffer
++        return _frombuffer, (buffer, array.dtype, array.shape, order)
++
+ except ImportError:
+     np = None
+ 
+@@ -32,7 +62,8 @@
      _2G, _4G, bigmemtest, reap_threads, forget,
      )
  
@@ -191,7 +232,20 @@
  
  requires_32b = unittest.skipUnless(sys.maxsize < 2**32,
                                     "test is only meaningful on 32-bit builds")
-@@ -1457,12 +1456,11 @@
+@@ -285,9 +316,9 @@
+             return not (self == other)
+ 
+         def __repr__(self):
+-            return (f"{type(self)}(shape={self.array.shape},"
+-                    f"strides={self.array.strides}, "
+-                    f"bytes={self.array.tobytes()})")
++            return ("{}(shape={}, strides={}, bytes={})".format(
++                type(self), self.array.shape, self.array.strides,
++                self.array.tobytes()))
+ 
+         def __reduce_ex__(self, protocol):
+             if not self.array.contiguous:
+@@ -1457,12 +1488,11 @@
      # of 1.
      def dont_test_disassembly(self):
          from io import StringIO
@@ -205,7 +259,18 @@
              got = filelike.getvalue()
              self.assertEqual(expected, got)
  
-@@ -2340,7 +2338,6 @@
+@@ -2107,6 +2137,10 @@
+         x = ComplexNewObjEx.__new__(ComplexNewObjEx, 0xface)  # avoid __init__
+         x.abc = 666
+         for proto in protocols:
++            if sys.version_info < (3, 6) and proto < 4:
++                # '__getnewargs_ex__' is not supported in protocol 2 & 3 before Python3.6.
++                # See https://docs.python.org/3/library/pickle.html#object.__getnewargs_ex__
++                continue
+             with self.subTest(proto=proto):
+                 s = self.dumps(x, proto)
+                 if proto < 1:
+@@ -2340,7 +2374,6 @@
          elif frameless_start is not None:
              self.assertLess(pos - frameless_start, self.FRAME_SIZE_MIN)
  
@@ -213,7 +278,7 @@
      def test_framing_many_objects(self):
          obj = list(range(10**5))
          for proto in range(4, pickle.HIGHEST_PROTOCOL + 1):
-@@ -2430,7 +2427,6 @@
+@@ -2430,7 +2463,6 @@
                                  count_opcode(pickle.FRAME, pickled))
                  self.assertEqual(obj, self.loads(some_frames_pickle))
  
@@ -221,6 +286,58 @@
      def test_framed_write_sizes_with_delayed_writer(self):
          class ChunkAccumulator:
              """Accumulate pickler output in a list of raw chunks."""
+@@ -2786,6 +2818,12 @@
+ 
+     @unittest.skipIf(np is None, "Test needs Numpy")
+     def test_buffers_numpy(self):
++        def _reduce(items):
++            base_obj = items[0](*items[1])
++            if len(items) > 2:
++                base_obj.__setstate__(items[2])
++            return base_obj
++
+         def check_no_copy(x, y):
+             np.testing.assert_equal(x, y)
+             self.assertEqual(x.ctypes.data, y.ctypes.data)
+@@ -2797,20 +2835,32 @@
+         def check_array(arr):
+             # In-band
+             for proto in range(0, pickle.HIGHEST_PROTOCOL + 1):
+-                data = self.dumps(arr, proto)
+-                new = self.loads(data)
++                if sys.version_info < (3, 6) and proto >= 5:
++                    data = self.dumps(_numpy_ndarray_reduce(arr), proto)
++                    new = _reduce(self.loads(data))
++                else:
++                    data = self.dumps(arr, proto)
++                    new = self.loads(data)
+                 check_copy(arr, new)
+             for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
+                 buffer_callback = lambda _: True
+-                data = self.dumps(arr, proto, buffer_callback=buffer_callback)
+-                new = self.loads(data)
++                if sys.version_info < (3, 6):
++                    data = self.dumps(_numpy_ndarray_reduce(arr), proto, buffer_callback=buffer_callback)
++                    new = _reduce(self.loads(data))
++                else:
++                    data = self.dumps(arr, proto, buffer_callback=buffer_callback)
++                    new = self.loads(data)
+                 check_copy(arr, new)
+             # Out-of-band
+             for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
+                 buffers = []
+                 buffer_callback = buffers.append
+-                data = self.dumps(arr, proto, buffer_callback=buffer_callback)
+-                new = self.loads(data, buffers=buffers)
++                if sys.version_info < (3, 6):
++                    data = self.dumps(_numpy_ndarray_reduce(arr), proto, buffer_callback=buffer_callback)
++                    new = _reduce(self.loads(data, buffers=buffers))
++                else:
++                    data = self.dumps(arr, proto, buffer_callback=buffer_callback)
++                    new = self.loads(data, buffers=buffers)
+                 if arr.flags.c_contiguous or arr.flags.f_contiguous:
+                     check_no_copy(arr, new)
+                 else:
 --- ../38/Lib/test/test_pickle.py	2020-05-10 16:01:50.000000000 -0700
 +++ pickle5/test/test_pickle.py	2020-05-18 16:37:57.000000000 -0700
 @@ -1,7 +1,6 @@
