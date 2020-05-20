@@ -284,9 +284,9 @@ if _testbuffer is not None:
             return not (self == other)
 
         def __repr__(self):
-            return (f"{type(self)}(shape={self.array.shape},"
-                    f"strides={self.array.strides}, "
-                    f"bytes={self.array.tobytes()})")
+            return ("{}(shape={}, strides={}, bytes={})".format(
+                type(self), self.array.shape, self.array.strides,
+                self.array.tobytes()))
 
         def __reduce_ex__(self, protocol):
             if not self.array.contiguous:
@@ -2105,6 +2105,10 @@ class AbstractPickleTests(unittest.TestCase):
         x = ComplexNewObjEx.__new__(ComplexNewObjEx, 0xface)  # avoid __init__
         x.abc = 666
         for proto in protocols:
+            if sys.version_info < (3, 6) and proto < 4:
+                # '__getnewargs_ex__' is not supported in protocol 2 & 3 before Python3.6.
+                # See https://docs.python.org/3/library/pickle.html#object.__getnewargs_ex__
+                continue
             with self.subTest(proto=proto):
                 s = self.dumps(x, proto)
                 if proto < 1:
@@ -2781,6 +2785,7 @@ class AbstractPickleTests(unittest.TestCase):
             data = self.loads(data_pickled, buffers=None)
 
     @unittest.skipIf(np is None, "Test needs Numpy")
+    @unittest.skipIf(sys.version_info < (3, 6), "Test requires Python version >= 3.6")
     def test_buffers_numpy(self):
         def check_no_copy(x, y):
             np.testing.assert_equal(x, y)

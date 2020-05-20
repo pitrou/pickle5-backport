@@ -3,9 +3,9 @@
 ==========================================================
 
 This package backports all features and APIs added in the ``pickle`` module
-in Python 3.8.0, including the
+in Python 3.8.3, including the
 `PEP 574 <https://www.python.org/dev/peps/pep-0574/>`_ additions.  It should
-work with Python 3.6 and 3.7.
+work with Python 3.5, 3.6 and 3.7.
 
 Basic usage is similar to the ``pickle`` module, except that the module
 to be imported is ``pickle5``:
