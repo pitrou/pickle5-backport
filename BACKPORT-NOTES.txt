@@ -10,8 +10,8 @@ then:
     ./python Tools/clinic/clinic.py Modules/_pickle.c
     cp Modules/clinic/_pickle.c.h ../pickle5-backport/pickle5/clinic/_pickle-3.6.c.h
 
-* Same for 3.7
+* Same for 3.5 and 3.7
 
 * Currently, we are syncing with cpython v3.8.3
 
-* For python3.5, we skipped tests for __getnewargs_ex__ when protocol < 4, because it is not supported. We also use custom serializers for numpy array to test pickle protocol 5.
+* For python3.5, we skip tests for __getnewargs_ex__ when protocol < 4, because it is not supported. We also skip numpy array tests, because the current numpy version doesn't support pickle protocol 5.

@@ -21,38 +21,6 @@ except ImportError:
 
 try:
     import numpy as np
-
-    # This function is used for numpy serialization with pickle5 in Python3.5.
-    # It can be removed once numpy enables Pickle Protocol 5 for Python3.5.
-    def _numpy_ndarray_reduce(array):
-        # This function is implemented according to 'array_reduce_ex_picklebuffer'
-        # in numpy C backend. This is a workaround for python3.5 pickling support.
-        if ((not array.flags.c_contiguous and not array.flags.f_contiguous) or
-                (issubclass(type(array), np.ndarray) and type(array) is not np.ndarray) or
-                array.dtype == "O" or array.itemsize == 0):
-            return array.__reduce__()
-
-        from pickle5 import PickleBuffer as picklebuf_class
-
-        # if the array if Fortran-contiguous and not C-contiguous,
-        # the PickleBuffer instance will hold a view on the transpose
-        # of the initial array, that is C-contiguous.
-        if not array.flags.c_contiguous and array.flags.f_contiguous:
-            order = "F"
-            picklebuf_args = array.transpose()
-        else:
-            order = "C"
-            picklebuf_args = array
-        try:
-            buffer = picklebuf_class(picklebuf_args)
-        except Exception:
-            # Some arrays may refuse to export a buffer, in which case
-            # just fall back on regular __reduce_ex__ implementation
-            # (gh-12745).
-            return array.__reduce__()
-        from numpy.core.numeric import _frombuffer
-        return _frombuffer, (buffer, array.dtype, array.shape, order)
-
 except ImportError:
     np = None
 
@@ -2817,13 +2785,8 @@ class AbstractPickleTests(unittest.TestCase):
             data = self.loads(data_pickled, buffers=None)
 
     @unittest.skipIf(np is None, "Test needs Numpy")
+    @unittest.skipIf(sys.version_info < (3, 6), "Test requires Python version >= 3.6")
     def test_buffers_numpy(self):
-        def _reduce(items):
-            base_obj = items[0](*items[1])
-            if len(items) > 2:
-                base_obj.__setstate__(items[2])
-            return base_obj
-
         def check_no_copy(x, y):
             np.testing.assert_equal(x, y)
             self.assertEqual(x.ctypes.data, y.ctypes.data)
@@ -2835,32 +2798,20 @@ class AbstractPickleTests(unittest.TestCase):
         def check_array(arr):
             # In-band
             for proto in range(0, pickle.HIGHEST_PROTOCOL + 1):
-                if sys.version_info < (3, 6) and proto >= 5:
-                    data = self.dumps(_numpy_ndarray_reduce(arr), proto)
-                    new = _reduce(self.loads(data))
-                else:
-                    data = self.dumps(arr, proto)
-                    new = self.loads(data)
+                data = self.dumps(arr, proto)
+                new = self.loads(data)
                 check_copy(arr, new)
             for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
                 buffer_callback = lambda _: True
-                if sys.version_info < (3, 6):
-                    data = self.dumps(_numpy_ndarray_reduce(arr), proto, buffer_callback=buffer_callback)
-                    new = _reduce(self.loads(data))
-                else:
-                    data = self.dumps(arr, proto, buffer_callback=buffer_callback)
-                    new = self.loads(data)
+                data = self.dumps(arr, proto, buffer_callback=buffer_callback)
+                new = self.loads(data)
                 check_copy(arr, new)
             # Out-of-band
             for proto in range(5, pickle.HIGHEST_PROTOCOL + 1):
                 buffers = []
                 buffer_callback = buffers.append
-                if sys.version_info < (3, 6):
-                    data = self.dumps(_numpy_ndarray_reduce(arr), proto, buffer_callback=buffer_callback)
-                    new = _reduce(self.loads(data, buffers=buffers))
-                else:
-                    data = self.dumps(arr, proto, buffer_callback=buffer_callback)
-                    new = self.loads(data, buffers=buffers)
+                data = self.dumps(arr, proto, buffer_callback=buffer_callback)
+                new = self.loads(data, buffers=buffers)
                 if arr.flags.c_contiguous or arr.flags.f_contiguous:
                     check_no_copy(arr, new)
                 else:
