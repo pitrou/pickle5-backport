@@ -2,12 +2,9 @@
 
 // CPython 3.8 API backports
 
-#if PY_VERSION_HEX < 0x03080000
+#if (PY_VERSION_HEX < 0x03070200 && PY_VERSION_HEX >= 0x03070000) || PY_VERSION_HEX < 0x03060800
 
-/* Convenience function to get a builtin from its name.
- * Note this was backported at some point to 3.6.x and 3.7.x,
- * so it's possible to get a compilation warning.
- */
+/* Convenience function to get a builtin from its name.*/
 PyObject *
 _PyEval_GetBuiltinId(_Py_Identifier *name)
 {
