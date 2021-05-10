@@ -31,6 +31,7 @@ setup(
     url="https://github.com/pitrou/pickle5-backport",
     packages=find_packages(),
     ext_modules=ext_modules,
+    python_requires='>=3.5, <3.8',
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
